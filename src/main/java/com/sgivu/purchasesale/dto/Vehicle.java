@@ -22,5 +22,4 @@ public class Vehicle {
   private String transmission;
   private Double purchasePrice;
   private Double salePrice;
-  private boolean isAvailable;
 }
