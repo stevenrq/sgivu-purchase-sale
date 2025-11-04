@@ -3,12 +3,10 @@ package com.sgivu.purchasesale.dto;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
-import jakarta.persistence.Column;
-import jakarta.persistence.EnumType;
-import jakarta.persistence.Enumerated;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
+import jakarta.validation.constraints.Size;
 import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
@@ -18,45 +16,40 @@ import lombok.ToString;
 @ToString
 public class PurchaseSaleRequest {
 
+  @NotNull(message = "El ID del cliente es obligatorio.")
   private Long clientId;
 
+  @NotNull(message = "El ID del usuario interno es obligatorio.")
   private Long userId;
 
+  @NotNull(message = "El ID del vehículo es obligatorio.")
   private Long vehicleId;
 
-  @NotNull
-  @PositiveOrZero
-  @Column(name = "purchase_price")
+  @NotNull(message = "El precio de compra es obligatorio.")
+  @PositiveOrZero(message = "El precio de compra no puede ser negativo.")
   private Double purchasePrice;
 
-  @NotNull
-  @PositiveOrZero
-  @Column(name = "sale_price")
+  @NotNull(message = "El precio de venta es obligatorio.")
+  @PositiveOrZero(message = "El precio de venta no puede ser negativo.")
   private Double salePrice;
 
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  @Column(name = "contract_type", nullable = false)
+  @NotNull(message = "El tipo de contrato es obligatorio.")
   private ContractType contractType;
 
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  @Column(name = "contract_status", nullable = false)
+  @NotNull(message = "El estado del contrato es obligatorio.")
   private ContractStatus contractStatus;
 
-  @NotBlank
-  @Column(name = "payment_limitations", nullable = false, length = 200)
+  @NotBlank(message = "Las limitaciones de pago son obligatorias.")
+  @Size(max = 200, message = "Las limitaciones de pago no pueden exceder 200 caracteres.")
   private String paymentLimitations;
 
-  @NotBlank
-  @Column(name = "payment_terms", nullable = false, length = 200)
+  @NotBlank(message = "Los términos de pago son obligatorios.")
+  @Size(max = 200, message = "Los términos de pago no pueden exceder 200 caracteres.")
   private String paymentTerms;
 
-  @NotNull
-  @Enumerated(EnumType.STRING)
-  @Column(name = "payment_method", nullable = false)
+  @NotNull(message = "El método de pago es obligatorio.")
   private PaymentMethod paymentMethod;
 
-  @Column(name = "observations", length = 500)
+  @Size(max = 500, message = "Las observaciones no pueden exceder 500 caracteres.")
   private String observations;
 }

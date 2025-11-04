@@ -5,6 +5,7 @@ import com.sgivu.purchasesale.client.UserServiceClient;
 import com.sgivu.purchasesale.client.VehicleServiceClient;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.entity.PurchaseSale;
+import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
 import java.util.List;
@@ -17,20 +18,22 @@ import org.springframework.web.client.HttpClientErrorException;
 
 @Service
 @Transactional(readOnly = true)
-public class PurchaseSaleImpl implements PurchaseSaleService {
+public class PurchaseSaleServiceImpl implements PurchaseSaleService {
 
   private final PurchaseSaleRepository purchaseSaleRepository;
-
+  private final PurchaseSaleMapper purchaseSaleMapper;
   private final ClientServiceClient clientServiceClient;
   private final VehicleServiceClient vehicleServiceClient;
   private final UserServiceClient userServiceClient;
 
-  public PurchaseSaleImpl(
+  public PurchaseSaleServiceImpl(
       PurchaseSaleRepository purchaseSaleRepository,
+      PurchaseSaleMapper purchaseSaleMapper,
       ClientServiceClient clientServiceClient,
       VehicleServiceClient vehicleServiceClient,
       UserServiceClient userServiceClient) {
     this.purchaseSaleRepository = purchaseSaleRepository;
+    this.purchaseSaleMapper = purchaseSaleMapper;
     this.clientServiceClient = clientServiceClient;
     this.vehicleServiceClient = vehicleServiceClient;
     this.userServiceClient = userServiceClient;
@@ -38,10 +41,11 @@ public class PurchaseSaleImpl implements PurchaseSaleService {
 
   @Transactional
   @Override
-  public PurchaseSale save(PurchaseSale purchaseSale) {
-    purchaseSale.setClientId(resolveClientId(purchaseSale.getClientId()));
-    purchaseSale.setUserId(userServiceClient.getUserById(purchaseSale.getUserId()).getId());
-    purchaseSale.setVehicleId(resolveVehicleId(purchaseSale.getVehicleId()));
+  public PurchaseSale create(PurchaseSaleRequest purchaseSaleRequest) {
+    PurchaseSale purchaseSale = purchaseSaleMapper.toPurchaseSale(purchaseSaleRequest);
+    purchaseSale.setClientId(resolveClientId(purchaseSaleRequest.getClientId()));
+    purchaseSale.setUserId(resolveUserId(purchaseSaleRequest.getUserId()));
+    purchaseSale.setVehicleId(resolveVehicleId(purchaseSaleRequest.getVehicleId()));
 
     return purchaseSaleRepository.save(purchaseSale);
   }
@@ -68,18 +72,12 @@ public class PurchaseSaleImpl implements PurchaseSaleService {
         .findById(id)
         .map(
             existingPurchaseSale -> {
-              existingPurchaseSale.setClientId(purchaseSaleRequest.getClientId());
-              existingPurchaseSale.setUserId(purchaseSaleRequest.getUserId());
-              existingPurchaseSale.setVehicleId(purchaseSaleRequest.getVehicleId());
-              existingPurchaseSale.setPurchasePrice(purchaseSaleRequest.getPurchasePrice());
-              existingPurchaseSale.setSalePrice(purchaseSaleRequest.getSalePrice());
-              existingPurchaseSale.setContractType(purchaseSaleRequest.getContractType());
-              existingPurchaseSale.setContractStatus(purchaseSaleRequest.getContractStatus());
-              existingPurchaseSale.setPaymentLimitations(
-                  purchaseSaleRequest.getPaymentLimitations());
-              existingPurchaseSale.setPaymentTerms(purchaseSaleRequest.getPaymentTerms());
-              existingPurchaseSale.setPaymentMethod(purchaseSaleRequest.getPaymentMethod());
-              existingPurchaseSale.setObservations(purchaseSaleRequest.getObservations());
+              purchaseSaleMapper.updatePurchaseSaleFromRequest(
+                  purchaseSaleRequest, existingPurchaseSale);
+              existingPurchaseSale.setClientId(resolveClientId(purchaseSaleRequest.getClientId()));
+              existingPurchaseSale.setUserId(resolveUserId(purchaseSaleRequest.getUserId()));
+              existingPurchaseSale.setVehicleId(
+                  resolveVehicleId(purchaseSaleRequest.getVehicleId()));
               return purchaseSaleRepository.save(existingPurchaseSale);
             });
   }
@@ -92,17 +90,27 @@ public class PurchaseSaleImpl implements PurchaseSaleService {
 
   @Override
   public List<PurchaseSale> findByClientId(Long clientId) {
-    return purchaseSaleRepository.findByClientId(resolveClientId(clientId));
+    Long resolvedClientId = resolveClientId(clientId);
+    return purchaseSaleRepository.findByClientId(resolvedClientId);
   }
 
   @Override
   public List<PurchaseSale> findByUserId(Long userId) {
+    resolveUserId(userId);
     return purchaseSaleRepository.findByUserId(userId);
   }
 
   @Override
   public List<PurchaseSale> findByVehicleId(Long vehicleId) {
-    return purchaseSaleRepository.findByVehicleId(resolveVehicleId(vehicleId));
+    Long resolvedVehicleId = resolveVehicleId(vehicleId);
+    return purchaseSaleRepository.findByVehicleId(resolvedVehicleId);
+  }
+
+  private Long resolveUserId(Long userId) {
+    if (userId == null) {
+      throw new IllegalArgumentException("El ID del usuario debe ser proporcionado.");
+    }
+    return userServiceClient.getUserById(userId).getId();
   }
 
   private Long resolveClientId(Long clientId) {

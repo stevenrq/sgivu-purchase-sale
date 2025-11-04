@@ -8,7 +8,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 
 public interface PurchaseSaleService {
-  PurchaseSale save(PurchaseSale purchaseSale);
+
+  PurchaseSale create(PurchaseSaleRequest purchaseSaleRequest);
 
   Optional<PurchaseSale> findById(Long id);
 

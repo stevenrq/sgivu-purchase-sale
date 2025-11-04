@@ -1,24 +1,28 @@
 package com.sgivu.purchasesale.mapper;
 
+import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
 import com.sgivu.purchasesale.entity.PurchaseSale;
+import org.mapstruct.BeanMapping;
 import org.mapstruct.Mapper;
 import org.mapstruct.Mapping;
+import org.mapstruct.MappingTarget;
+import org.mapstruct.NullValuePropertyMappingStrategy;
 
 @Mapper(componentModel = "spring")
 public interface PurchaseSaleMapper {
 
-  @Mapping(source = "id", target = "id")
-  @Mapping(source = "clientId", target = "clientId")
-  @Mapping(source = "userId", target = "userId")
-  @Mapping(source = "vehicleId", target = "vehicleId")
-  @Mapping(source = "purchasePrice", target = "purchasePrice")
-  @Mapping(source = "salePrice", target = "salePrice")
-  @Mapping(source = "contractType", target = "contractType")
-  @Mapping(source = "contractStatus", target = "contractStatus")
-  @Mapping(source = "paymentLimitations", target = "paymentLimitations")
-  @Mapping(source = "paymentTerms", target = "paymentTerms")
-  @Mapping(source = "paymentMethod", target = "paymentMethod")
-  @Mapping(source = "observations", target = "observations")
   PurchaseSaleResponse toPurchaseSaleResponse(PurchaseSale purchaseSale);
+
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
+  PurchaseSale toPurchaseSale(PurchaseSaleRequest request);
+
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
+  @Mapping(target = "id", ignore = true)
+  @Mapping(target = "createdAt", ignore = true)
+  @Mapping(target = "updatedAt", ignore = true)
+  void updatePurchaseSaleFromRequest(
+      PurchaseSaleRequest request, @MappingTarget PurchaseSale purchaseSale);
 }
