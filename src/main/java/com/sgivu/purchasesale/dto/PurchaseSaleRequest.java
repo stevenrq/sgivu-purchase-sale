@@ -31,13 +31,13 @@ public class PurchaseSaleRequest {
 
   @NotNull(message = "El precio de venta es obligatorio.")
   @PositiveOrZero(message = "El precio de venta no puede ser negativo.")
-  private Double salePrice;
+  private Double salePrice = 0d;
 
   @NotNull(message = "El tipo de contrato es obligatorio.")
-  private ContractType contractType;
+  private ContractType contractType = ContractType.PURCHASE;
 
   @NotNull(message = "El estado del contrato es obligatorio.")
-  private ContractStatus contractStatus;
+  private ContractStatus contractStatus = ContractStatus.PENDING;
 
   @NotBlank(message = "Las limitaciones de pago son obligatorias.")
   @Size(max = 200, message = "Las limitaciones de pago no pueden exceder 200 caracteres.")
