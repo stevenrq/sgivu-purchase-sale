@@ -1,17 +1,25 @@
 package com.sgivu.purchasesale.controller;
 
+import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
-import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
+import com.sgivu.purchasesale.service.PurchaseSaleDetailService;
+import com.sgivu.purchasesale.service.PurchaseSaleReportService;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
+import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
-import java.util.Optional;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.validation.BindingResult;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +27,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -27,21 +36,27 @@ public class PurchaseSaleController {
 
   private final PurchaseSaleService purchaseSaleService;
   private final PurchaseSaleMapper purchaseSaleMapper;
+  private final PurchaseSaleReportService purchaseSaleReportService;
+  private final PurchaseSaleDetailService purchaseSaleDetailService;
 
   public PurchaseSaleController(
-      PurchaseSaleService purchaseSaleService, PurchaseSaleMapper purchaseSaleMapper) {
+      PurchaseSaleService purchaseSaleService,
+      PurchaseSaleMapper purchaseSaleMapper,
+      PurchaseSaleReportService purchaseSaleReportService,
+      PurchaseSaleDetailService purchaseSaleDetailService) {
     this.purchaseSaleService = purchaseSaleService;
     this.purchaseSaleMapper = purchaseSaleMapper;
+    this.purchaseSaleReportService = purchaseSaleReportService;
+    this.purchaseSaleDetailService = purchaseSaleDetailService;
   }
 
   @PostMapping
   @PreAuthorize("hasAuthority('purchase_sale:create')")
-  public ResponseEntity<PurchaseSale> create(
-      @RequestBody PurchaseSale purchaseSale, BindingResult bindingResult) {
-    if (bindingResult.hasErrors()) {
-      return ResponseEntity.badRequest().body(null);
-    }
-    return ResponseEntity.status(HttpStatus.CREATED).body(purchaseSaleService.save(purchaseSale));
+  public ResponseEntity<PurchaseSaleResponse> create(
+      @Valid @RequestBody PurchaseSaleRequest purchaseSaleRequest) {
+    PurchaseSaleResponse response =
+        purchaseSaleMapper.toPurchaseSaleResponse(purchaseSaleService.create(purchaseSaleRequest));
+    return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
   @GetMapping("/{id}")
@@ -58,30 +73,45 @@ public class PurchaseSaleController {
   @GetMapping
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getAll() {
-    return ResponseEntity.ok(
+    List<PurchaseSaleResponse> responses =
         purchaseSaleService.findAll().stream()
             .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList());
+            .toList();
+    return ResponseEntity.ok(responses);
+  }
+
+  @GetMapping("/detailed")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<List<PurchaseSaleDetailResponse>> getAllDetailed() {
+    return ResponseEntity.ok(
+        purchaseSaleDetailService.toDetails(purchaseSaleService.findAll()));
   }
 
   @GetMapping("/page/{page}")
-  public ResponseEntity<List<PurchaseSaleResponse>> getByPage(@PathVariable Integer page) {
-    return ResponseEntity.ok(
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<Page<PurchaseSaleResponse>> getByPage(@PathVariable Integer page) {
+    Page<PurchaseSaleResponse> pagedResponse =
         purchaseSaleService
             .findAll(PageRequest.of(page, 10))
-            .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList());
+            .map(purchaseSaleMapper::toPurchaseSaleResponse);
+    return ResponseEntity.ok(pagedResponse);
+  }
+
+  @GetMapping("/page/{page}/detailed")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<Page<PurchaseSaleDetailResponse>> getDetailedPage(
+      @PathVariable Integer page) {
+    var pageable = PageRequest.of(page, 10);
+    var pagedContracts = purchaseSaleService.findAll(pageable);
+    var detailed = purchaseSaleDetailService.toDetails(pagedContracts.getContent());
+    return ResponseEntity.ok(
+        new PageImpl<>(detailed, pagedContracts.getPageable(), pagedContracts.getTotalElements()));
   }
 
   @PutMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:update')")
   public ResponseEntity<PurchaseSaleResponse> update(
-      @PathVariable Long id,
-      @RequestBody PurchaseSaleRequest purchaseSaleRequest,
-      BindingResult bindingResult) {
-    if (bindingResult.hasErrors()) {
-      return ResponseEntity.badRequest().body(null);
-    }
+      @PathVariable Long id, @Valid @RequestBody PurchaseSaleRequest purchaseSaleRequest) {
     return purchaseSaleService
         .update(id, purchaseSaleRequest)
         .map(
@@ -93,40 +123,80 @@ public class PurchaseSaleController {
   @DeleteMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:delete')")
   public ResponseEntity<Void> deleteById(@PathVariable Long id) {
-    Optional<PurchaseSale> purchaseSaleOptional = purchaseSaleService.findById(id);
-    if (purchaseSaleOptional.isPresent()) {
-      purchaseSaleService.deleteById(id);
-
-      return ResponseEntity.noContent().build();
-    }
-
-    return ResponseEntity.notFound().build();
+    return purchaseSaleService
+        .findById(id)
+        .map(
+            purchaseSale -> {
+              purchaseSaleService.deleteById(id);
+              return ResponseEntity.noContent().<Void>build();
+            })
+        .orElse(ResponseEntity.notFound().build());
   }
 
   @GetMapping("/client/{clientId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByClientId(@PathVariable Long clientId) {
-    return ResponseEntity.ok(
+    List<PurchaseSaleResponse> responses =
         purchaseSaleService.findByClientId(clientId).stream()
             .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList());
+            .toList();
+    return ResponseEntity.ok(responses);
   }
 
   @GetMapping("/user/{userId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByUserId(@PathVariable Long userId) {
-    return ResponseEntity.ok(
+    List<PurchaseSaleResponse> responses =
         purchaseSaleService.findByUserId(userId).stream()
             .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList());
+            .toList();
+    return ResponseEntity.ok(responses);
   }
 
   @GetMapping("/vehicle/{vehicleId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByVehicleId(@PathVariable Long vehicleId) {
-    return ResponseEntity.ok(
+    List<PurchaseSaleResponse> responses =
         purchaseSaleService.findByVehicleId(vehicleId).stream()
             .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList());
+            .toList();
+    return ResponseEntity.ok(responses);
+  }
+
+  @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<byte[]> exportPdfReport(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
+    byte[] report = purchaseSaleReportService.generatePdf(startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("pdf"))
+        .contentType(MediaType.APPLICATION_PDF)
+        .body(report);
+  }
+
+  @GetMapping(
+      value = "/report/excel",
+      produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<byte[]> exportExcelReport(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
+    byte[] report = purchaseSaleReportService.generateExcel(startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("xlsx"))
+        .contentType(
+            MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        .body(report);
+  }
+
+  private String buildContentDisposition(String extension) {
+    String timestamp = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
+    return "attachment; filename=\"reporte-compras-ventas-" + timestamp + "." + extension + "\"";
   }
 }

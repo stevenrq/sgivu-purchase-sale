@@ -3,6 +3,7 @@ package com.sgivu.purchasesale.dto;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
+import java.time.LocalDateTime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
@@ -21,4 +22,6 @@ public class PurchaseSaleResponse {
   private String paymentTerms;
   private PaymentMethod paymentMethod;
   private String observations;
+  private LocalDateTime createdAt;
+  private LocalDateTime updatedAt;
 }
