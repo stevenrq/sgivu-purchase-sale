@@ -3,12 +3,18 @@ package com.sgivu.purchasesale.controller;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
+import com.sgivu.purchasesale.service.PurchaseSaleReportService;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
 import jakarta.validation.Valid;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -18,6 +24,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -26,11 +33,15 @@ public class PurchaseSaleController {
 
   private final PurchaseSaleService purchaseSaleService;
   private final PurchaseSaleMapper purchaseSaleMapper;
+  private final PurchaseSaleReportService purchaseSaleReportService;
 
   public PurchaseSaleController(
-      PurchaseSaleService purchaseSaleService, PurchaseSaleMapper purchaseSaleMapper) {
+      PurchaseSaleService purchaseSaleService,
+      PurchaseSaleMapper purchaseSaleMapper,
+      PurchaseSaleReportService purchaseSaleReportService) {
     this.purchaseSaleService = purchaseSaleService;
     this.purchaseSaleMapper = purchaseSaleMapper;
+    this.purchaseSaleReportService = purchaseSaleReportService;
   }
 
   @PostMapping
@@ -126,5 +137,42 @@ public class PurchaseSaleController {
             .map(purchaseSaleMapper::toPurchaseSaleResponse)
             .toList();
     return ResponseEntity.ok(responses);
+  }
+
+  @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<byte[]> exportPdfReport(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
+    byte[] report = purchaseSaleReportService.generatePdf(startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("pdf"))
+        .contentType(MediaType.APPLICATION_PDF)
+        .body(report);
+  }
+
+  @GetMapping(
+      value = "/report/excel",
+      produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<byte[]> exportExcelReport(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
+    byte[] report = purchaseSaleReportService.generateExcel(startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("xlsx"))
+        .contentType(
+            MediaType.parseMediaType(
+                "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"))
+        .body(report);
+  }
+
+  private String buildContentDisposition(String extension) {
+    String timestamp = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
+    return "attachment; filename=\"reporte-compras-ventas-" + timestamp + "." + extension + "\"";
   }
 }
