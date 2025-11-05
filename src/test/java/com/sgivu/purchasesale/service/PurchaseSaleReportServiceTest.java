@@ -2,9 +2,14 @@ package com.sgivu.purchasesale.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import com.sgivu.purchasesale.dto.ClientSummary;
+import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
+import com.sgivu.purchasesale.dto.UserSummary;
+import com.sgivu.purchasesale.dto.VehicleSummary;
 import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
@@ -24,18 +29,21 @@ import org.springframework.data.domain.Sort;
 class PurchaseSaleReportServiceTest {
 
   @Mock private PurchaseSaleRepository purchaseSaleRepository;
+  @Mock private PurchaseSaleDetailService purchaseSaleDetailService;
 
   private PurchaseSaleReportService purchaseSaleReportService;
 
   @BeforeEach
   void setUp() {
-    purchaseSaleReportService = new PurchaseSaleReportService(purchaseSaleRepository);
+    purchaseSaleReportService =
+        new PurchaseSaleReportService(purchaseSaleRepository, purchaseSaleDetailService);
   }
 
   @Test
   @DisplayName("generatePdf debe producir un arreglo de bytes no vacío")
   void generatePdf_ShouldReturnDocumentBytes() {
     when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
 
     byte[] pdf = purchaseSaleReportService.generatePdf(null, null);
 
@@ -47,6 +55,7 @@ class PurchaseSaleReportServiceTest {
   @DisplayName("generateExcel debe producir un arreglo de bytes no vacío")
   void generateExcel_ShouldReturnDocumentBytes() {
     when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
 
     byte[] excel = purchaseSaleReportService.generateExcel(null, null);
 
@@ -71,5 +80,43 @@ class PurchaseSaleReportServiceTest {
     purchaseSale.setCreatedAt(LocalDateTime.now().minusDays(1));
     purchaseSale.setUpdatedAt(LocalDateTime.now());
     return purchaseSale;
+  }
+
+  private PurchaseSaleDetailResponse sampleDetail() {
+    PurchaseSaleDetailResponse detail = new PurchaseSaleDetailResponse();
+    detail.setId(1L);
+    detail.setClientId(10L);
+    detail.setUserId(5L);
+    detail.setVehicleId(7L);
+    detail.setPurchasePrice(15000000d);
+    detail.setSalePrice(18000000d);
+    detail.setContractType(ContractType.SALE);
+    detail.setContractStatus(ContractStatus.ACTIVE);
+    detail.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+    detail.setClientSummary(
+        ClientSummary.builder()
+            .id(10L)
+            .type("PERSON")
+            .name("Juan Pérez")
+            .identifier("CC 123456")
+            .email("juan@example.com")
+            .build());
+    detail.setUserSummary(
+        UserSummary.builder()
+            .id(5L)
+            .fullName("Ana Gestora")
+            .username("agestora")
+            .email("ana@example.com")
+            .build());
+    detail.setVehicleSummary(
+        VehicleSummary.builder()
+            .id(7L)
+            .type("CAR")
+            .brand("Kia")
+            .model("Rio")
+            .plate("ABC123")
+            .status("Activo")
+            .build());
+    return detail;
   }
 }

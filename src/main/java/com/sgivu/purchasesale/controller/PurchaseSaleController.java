@@ -1,8 +1,10 @@
 package com.sgivu.purchasesale.controller;
 
+import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
+import com.sgivu.purchasesale.service.PurchaseSaleDetailService;
 import com.sgivu.purchasesale.service.PurchaseSaleReportService;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
 import jakarta.validation.Valid;
@@ -10,6 +12,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
@@ -34,14 +37,17 @@ public class PurchaseSaleController {
   private final PurchaseSaleService purchaseSaleService;
   private final PurchaseSaleMapper purchaseSaleMapper;
   private final PurchaseSaleReportService purchaseSaleReportService;
+  private final PurchaseSaleDetailService purchaseSaleDetailService;
 
   public PurchaseSaleController(
       PurchaseSaleService purchaseSaleService,
       PurchaseSaleMapper purchaseSaleMapper,
-      PurchaseSaleReportService purchaseSaleReportService) {
+      PurchaseSaleReportService purchaseSaleReportService,
+      PurchaseSaleDetailService purchaseSaleDetailService) {
     this.purchaseSaleService = purchaseSaleService;
     this.purchaseSaleMapper = purchaseSaleMapper;
     this.purchaseSaleReportService = purchaseSaleReportService;
+    this.purchaseSaleDetailService = purchaseSaleDetailService;
   }
 
   @PostMapping
@@ -74,6 +80,13 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
+  @GetMapping("/detailed")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<List<PurchaseSaleDetailResponse>> getAllDetailed() {
+    return ResponseEntity.ok(
+        purchaseSaleDetailService.toDetails(purchaseSaleService.findAll()));
+  }
+
   @GetMapping("/page/{page}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<Page<PurchaseSaleResponse>> getByPage(@PathVariable Integer page) {
@@ -82,6 +95,17 @@ public class PurchaseSaleController {
             .findAll(PageRequest.of(page, 10))
             .map(purchaseSaleMapper::toPurchaseSaleResponse);
     return ResponseEntity.ok(pagedResponse);
+  }
+
+  @GetMapping("/page/{page}/detailed")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<Page<PurchaseSaleDetailResponse>> getDetailedPage(
+      @PathVariable Integer page) {
+    var pageable = PageRequest.of(page, 10);
+    var pagedContracts = purchaseSaleService.findAll(pageable);
+    var detailed = purchaseSaleDetailService.toDetails(pagedContracts.getContent());
+    return ResponseEntity.ok(
+        new PageImpl<>(detailed, pagedContracts.getPageable(), pagedContracts.getTotalElements()));
   }
 
   @PutMapping("/{id}")

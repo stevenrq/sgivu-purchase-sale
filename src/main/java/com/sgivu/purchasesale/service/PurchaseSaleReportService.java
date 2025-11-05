@@ -14,13 +14,16 @@ import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
+import com.sgivu.purchasesale.dto.ClientSummary;
+import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
+import com.sgivu.purchasesale.dto.UserSummary;
+import com.sgivu.purchasesale.dto.VehicleSummary;
 import java.io.ByteArrayOutputStream;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.EnumMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
@@ -41,18 +44,23 @@ public class PurchaseSaleReportService {
       DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
   private final PurchaseSaleRepository purchaseSaleRepository;
+  private final PurchaseSaleDetailService purchaseSaleDetailService;
   private final Map<ContractStatus, String> statusLabels = new EnumMap<>(ContractStatus.class);
   private final Map<ContractType, String> typeLabels = new EnumMap<>(ContractType.class);
   private final Map<PaymentMethod, String> paymentMethodLabels =
       new EnumMap<>(PaymentMethod.class);
 
-  public PurchaseSaleReportService(PurchaseSaleRepository purchaseSaleRepository) {
+  public PurchaseSaleReportService(
+      PurchaseSaleRepository purchaseSaleRepository,
+      PurchaseSaleDetailService purchaseSaleDetailService) {
     this.purchaseSaleRepository = purchaseSaleRepository;
+    this.purchaseSaleDetailService = purchaseSaleDetailService;
     initialiseLabels();
   }
 
   public byte[] generatePdf(LocalDate startDate, LocalDate endDate) {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
+    List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
 
     try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
       Document document = new Document();
@@ -74,7 +82,7 @@ public class PurchaseSaleReportService {
       period.setSpacingAfter(20f);
       document.add(period);
 
-      PdfPTable table = buildPdfTable(contracts);
+      PdfPTable table = buildPdfTable(details);
       document.add(table);
 
       document.close();
@@ -86,6 +94,7 @@ public class PurchaseSaleReportService {
 
   public byte[] generateExcel(LocalDate startDate, LocalDate endDate) {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
+    List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
 
     try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream =
         new ByteArrayOutputStream()) {
@@ -129,14 +138,14 @@ public class PurchaseSaleReportService {
       }
 
       int rowIdx = 3;
-      for (PurchaseSale contract : contracts) {
+      for (PurchaseSaleDetailResponse contract : details) {
         Row row = sheet.createRow(rowIdx++);
         row.createCell(0).setCellValue(contract.getId());
         row.createCell(1).setCellValue(getContractTypeLabel(contract.getContractType()));
         row.createCell(2).setCellValue(getStatusLabel(contract.getContractStatus()));
-        row.createCell(3).setCellValue(contract.getClientId());
-        row.createCell(4).setCellValue(contract.getUserId());
-        row.createCell(5).setCellValue(contract.getVehicleId());
+        row.createCell(3).setCellValue(formatClient(contract.getClientSummary()));
+        row.createCell(4).setCellValue(formatUser(contract.getUserSummary()));
+        row.createCell(5).setCellValue(formatVehicle(contract.getVehicleSummary()));
         row.createCell(6).setCellValue(contract.getPurchasePrice());
         row.createCell(7).setCellValue(contract.getSalePrice());
         row.createCell(8).setCellValue(getPaymentMethodLabel(contract.getPaymentMethod()));
@@ -170,7 +179,7 @@ public class PurchaseSaleReportService {
     return afterStart && beforeEnd;
   }
 
-  private PdfPTable buildPdfTable(List<PurchaseSale> contracts) {
+  private PdfPTable buildPdfTable(List<PurchaseSaleDetailResponse> contracts) {
     float[] columnWidths = {1.2f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.6f, 1.6f, 1.8f, 1.6f, 1.6f};
     PdfPTable table = new PdfPTable(columnWidths);
     table.setWidthPercentage(100);
@@ -199,13 +208,13 @@ public class PurchaseSaleReportService {
       table.addCell(headerCell);
     }
 
-    for (PurchaseSale contract : contracts) {
+    for (PurchaseSaleDetailResponse contract : contracts) {
       addCell(table, contract.getId());
       addCell(table, getContractTypeLabel(contract.getContractType()));
       addCell(table, getStatusLabel(contract.getContractStatus()));
-      addCell(table, contract.getClientId());
-      addCell(table, contract.getUserId());
-      addCell(table, contract.getVehicleId());
+      addCell(table, formatClient(contract.getClientSummary()));
+      addCell(table, formatUser(contract.getUserSummary()));
+      addCell(table, formatVehicle(contract.getVehicleSummary()));
       addCell(table, contract.getPurchasePrice());
       addCell(table, contract.getSalePrice());
       addCell(table, getPaymentMethodLabel(contract.getPaymentMethod()));
@@ -243,6 +252,42 @@ public class PurchaseSaleReportService {
     String start = startDate != null ? startDate.format(DateTimeFormatter.ISO_DATE) : "...";
     String end = endDate != null ? endDate.format(DateTimeFormatter.ISO_DATE) : "...";
     return "Periodo: " + start + " - " + end;
+  }
+
+  private String formatClient(ClientSummary clientSummary) {
+    if (clientSummary == null) {
+      return "N/D";
+    }
+
+    StringBuilder builder = new StringBuilder();
+    builder.append(clientSummary.getName() != null ? clientSummary.getName() : "Cliente");
+    builder.append(" (ID ").append(clientSummary.getId()).append(")");
+    if (clientSummary.getIdentifier() != null) {
+      builder.append(" - ").append(clientSummary.getIdentifier());
+    }
+    return builder.toString();
+  }
+
+  private String formatUser(UserSummary userSummary) {
+    if (userSummary == null) {
+      return "N/D";
+    }
+    String name = userSummary.getFullName() != null ? userSummary.getFullName() : "Usuario";
+    String username = userSummary.getUsername() != null ? userSummary.getUsername() : "N/D";
+    return String.format("%s (@%s)", name, username);
+  }
+
+  private String formatVehicle(VehicleSummary vehicleSummary) {
+    if (vehicleSummary == null) {
+      return "N/D";
+    }
+
+    String plate = vehicleSummary.getPlate() != null ? vehicleSummary.getPlate() : "N/D";
+    return String.format(
+        "%s %s - %s",
+        vehicleSummary.getBrand() != null ? vehicleSummary.getBrand() : "Vehículo",
+        vehicleSummary.getModel() != null ? vehicleSummary.getModel() : "N/D",
+        plate);
   }
 
   private void initialiseLabels() {
