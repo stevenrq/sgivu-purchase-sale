@@ -3,6 +3,7 @@ package com.sgivu.purchasesale.dto;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.PositiveOrZero;
@@ -22,7 +23,6 @@ public class PurchaseSaleRequest {
   @NotNull(message = "El ID del usuario interno es obligatorio.")
   private Long userId;
 
-  @NotNull(message = "El ID del vehículo es obligatorio.")
   private Long vehicleId;
 
   @NotNull(message = "El precio de compra es obligatorio.")
@@ -52,4 +52,6 @@ public class PurchaseSaleRequest {
 
   @Size(max = 500, message = "Las observaciones no pueden exceder 500 caracteres.")
   private String observations;
+
+  @Valid private VehicleCreationRequest vehicleData;
 }

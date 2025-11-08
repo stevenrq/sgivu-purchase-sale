@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,10 +16,12 @@ import com.sgivu.purchasesale.dto.Car;
 import com.sgivu.purchasesale.dto.Person;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.User;
+import com.sgivu.purchasesale.dto.VehicleCreationRequest;
 import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
+import com.sgivu.purchasesale.enums.VehicleType;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapperImpl;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
@@ -102,12 +105,44 @@ class PurchaseSaleServiceImplTest {
   }
 
   @Test
+  @DisplayName(
+      "create debe registrar el vehículo cuando se omite el identificador en una compra")
+  void createPurchase_ShouldRegisterVehicleWhenVehicleIdMissing() {
+    PurchaseSaleRequest request = buildBaseRequest();
+    request.setVehicleId(null);
+    VehicleCreationRequest vehicleData = buildVehicleData();
+    request.setVehicleData(vehicleData);
+
+    configureSuccessfulExternalLookups();
+
+    Car createdCar = new Car();
+    long newVehicleId = 555L;
+    createdCar.setId(newVehicleId);
+    when(vehicleServiceClient.createCar(any(Car.class))).thenReturn(createdCar);
+    when(purchaseSaleRepository.findByVehicleId(newVehicleId)).thenReturn(List.of());
+    when(purchaseSaleRepository.save(any(PurchaseSale.class)))
+        .thenAnswer(
+            invocation -> {
+              PurchaseSale entity = invocation.getArgument(0);
+              entity.setId(777L);
+              return entity;
+            });
+
+    PurchaseSale result = purchaseSaleService.create(request);
+
+    assertThat(result.getVehicleId()).isEqualTo(newVehicleId);
+    assertThat(result.getSalePrice()).isEqualTo(vehicleData.getSalePrice());
+    verify(vehicleServiceClient).createCar(any(Car.class));
+  }
+
+  @Test
   @DisplayName("create debe persistir una venta cuando existe una compra activa o completada")
   void create_ShouldPersistSaleWithValidPurchase() {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
     request.setSalePrice(19000000d);
     request.setContractStatus(ContractStatus.PENDING);
+    request.setPurchasePrice(null);
 
     configureSuccessfulExternalLookups();
 
@@ -116,6 +151,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setVehicleId(VEHICLE_ID);
     existingPurchase.setContractType(ContractType.PURCHASE);
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
+    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
 
     when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
         .thenReturn(List.of(existingPurchase));
@@ -133,6 +169,7 @@ class PurchaseSaleServiceImplTest {
     assertThat(result.getContractType()).isEqualTo(ContractType.SALE);
     assertThat(result.getSalePrice()).isEqualTo(19000000d);
     assertThat(result.getContractStatus()).isEqualTo(ContractStatus.PENDING);
+    assertThat(result.getPurchasePrice()).isEqualTo(PURCHASE_PRICE);
   }
 
   @Test
@@ -141,13 +178,14 @@ class PurchaseSaleServiceImplTest {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
     request.setSalePrice(19000000d);
+    request.setPurchasePrice(null);
 
     configureSuccessfulExternalLookups();
     when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of());
 
     assertThatThrownBy(() -> purchaseSaleService.create(request))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("no cuenta con una compra activa o completada");
+        .hasMessageContaining("No se encontró una compra válida asociada al vehículo");
   }
 
   @Test
@@ -156,6 +194,7 @@ class PurchaseSaleServiceImplTest {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
     request.setSalePrice(0d);
+    request.setPurchasePrice(null);
 
     configureSuccessfulExternalLookups();
 
@@ -164,6 +203,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setVehicleId(VEHICLE_ID);
     existingPurchase.setContractType(ContractType.PURCHASE);
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
+    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
 
     when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
         .thenReturn(List.of(existingPurchase));
@@ -180,6 +220,7 @@ class PurchaseSaleServiceImplTest {
     request.setContractType(ContractType.SALE);
     request.setSalePrice(19000000d);
     request.setContractStatus(ContractStatus.ACTIVE);
+    request.setPurchasePrice(null);
 
     configureSuccessfulExternalLookups();
 
@@ -188,6 +229,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setVehicleId(VEHICLE_ID);
     existingPurchase.setContractType(ContractType.PURCHASE);
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
+    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
 
     PurchaseSale existingSale = new PurchaseSale();
     existingSale.setId(75L);
@@ -337,6 +379,30 @@ class PurchaseSaleServiceImplTest {
     return request;
   }
 
+  private VehicleCreationRequest buildVehicleData() {
+    VehicleCreationRequest vehicle = new VehicleCreationRequest();
+    vehicle.setVehicleType(VehicleType.CAR);
+    vehicle.setBrand("Toyota");
+    vehicle.setModel("Corolla");
+    vehicle.setCapacity(5);
+    vehicle.setLine("SE");
+    vehicle.setPlate("ABC123");
+    vehicle.setMotorNumber("MOTOR-123");
+    vehicle.setSerialNumber("SERIAL-123");
+    vehicle.setChassisNumber("CHASSIS-123");
+    vehicle.setColor("Rojo");
+    vehicle.setCityRegistered("Bogota");
+    vehicle.setYear(2022);
+    vehicle.setMileage(10);
+    vehicle.setTransmission("Automática");
+    vehicle.setPurchasePrice(PURCHASE_PRICE);
+    vehicle.setSalePrice(20000000d);
+    vehicle.setBodyType("Sedán");
+    vehicle.setFuelType("Gasolina");
+    vehicle.setNumberOfDoors(4);
+    return vehicle;
+  }
+
   private void configureSuccessfulExternalLookups() {
     Person person = new Person();
     person.setId(CLIENT_ID);
@@ -348,6 +414,6 @@ class PurchaseSaleServiceImplTest {
 
     Car car = new Car();
     car.setId(VEHICLE_ID);
-    when(vehicleServiceClient.getCarById(VEHICLE_ID)).thenReturn(car);
+    lenient().when(vehicleServiceClient.getCarById(VEHICLE_ID)).thenReturn(car);
   }
 }

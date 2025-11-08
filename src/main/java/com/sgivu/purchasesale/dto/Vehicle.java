@@ -22,4 +22,6 @@ public class Vehicle {
   private String transmission;
   private Double purchasePrice;
   private Double salePrice;
+  private String status;
+  private String photoUrl;
 }

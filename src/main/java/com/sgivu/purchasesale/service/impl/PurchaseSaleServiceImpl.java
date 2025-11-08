@@ -3,13 +3,19 @@ package com.sgivu.purchasesale.service.impl;
 import com.sgivu.purchasesale.client.ClientServiceClient;
 import com.sgivu.purchasesale.client.UserServiceClient;
 import com.sgivu.purchasesale.client.VehicleServiceClient;
+import com.sgivu.purchasesale.dto.Car;
+import com.sgivu.purchasesale.dto.Motorcycle;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
+import com.sgivu.purchasesale.dto.Vehicle;
+import com.sgivu.purchasesale.dto.VehicleCreationRequest;
 import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
+import com.sgivu.purchasesale.enums.VehicleType;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
+import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
 import java.util.Objects;
@@ -18,6 +24,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
 @Service
@@ -49,7 +56,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     ContractType contractType = normalizeContractType(purchaseSaleRequest);
     Long resolvedClientId = resolveClientId(purchaseSaleRequest.getClientId());
     Long resolvedUserId = resolveUserId(purchaseSaleRequest.getUserId());
-    Long resolvedVehicleId = resolveVehicleId(purchaseSaleRequest.getVehicleId());
+    Long resolvedVehicleId = resolveVehicleReference(contractType, purchaseSaleRequest);
     List<PurchaseSale> contractsByVehicle =
         purchaseSaleRepository.findByVehicleId(resolvedVehicleId);
     applyBusinessRules(contractType, purchaseSaleRequest, contractsByVehicle, null, resolvedVehicleId);
@@ -148,6 +155,93 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return contractType;
   }
 
+  private Long resolveVehicleReference(
+      ContractType contractType, PurchaseSaleRequest purchaseSaleRequest) {
+    if (contractType == ContractType.PURCHASE) {
+      if (purchaseSaleRequest.getVehicleId() != null) {
+        return resolveVehicleId(purchaseSaleRequest.getVehicleId());
+      }
+      Long vehicleId = registerVehicleForPurchase(purchaseSaleRequest);
+      purchaseSaleRequest.setVehicleId(vehicleId);
+      return vehicleId;
+    }
+
+    if (purchaseSaleRequest.getVehicleId() == null) {
+      throw new IllegalArgumentException(
+          "Debes seleccionar el vehículo asociado al contrato de venta.");
+    }
+
+    if (purchaseSaleRequest.getVehicleData() != null) {
+      throw new IllegalArgumentException(
+          "Los datos detallados del vehículo solo deben enviarse para contratos de compra.");
+    }
+
+    return resolveVehicleId(purchaseSaleRequest.getVehicleId());
+  }
+
+  private Long registerVehicleForPurchase(PurchaseSaleRequest purchaseSaleRequest) {
+    VehicleCreationRequest vehicleData = purchaseSaleRequest.getVehicleData();
+    if (vehicleData == null) {
+      throw new IllegalArgumentException(
+          "Debes proporcionar los datos del vehículo para registrar una compra.");
+    }
+
+    VehicleType vehicleType =
+        Optional.ofNullable(vehicleData.getVehicleType())
+            .orElseThrow(
+                () ->
+                    new IllegalArgumentException(
+                        "Debes especificar si se trata de un automóvil o una motocicleta."));
+
+    if (vehicleType == VehicleType.CAR) {
+      Car car = applyCommonVehicleAttributes(new Car(), vehicleData, purchaseSaleRequest);
+      car.setBodyType(
+          requireText(vehicleData.getBodyType(), "La carrocería del automóvil es obligatoria."));
+      car.setFuelType(
+          requireText(vehicleData.getFuelType(), "El tipo de combustible del automóvil es obligatorio."));
+      car.setNumberOfDoors(
+          requirePositiveInteger(
+              vehicleData.getNumberOfDoors(), "Debes indicar el número de puertas del automóvil."));
+      return vehicleServiceClient.createCar(car).getId();
+    }
+
+    Motorcycle motorcycle =
+        applyCommonVehicleAttributes(new Motorcycle(), vehicleData, purchaseSaleRequest);
+    motorcycle.setMotorcycleType(
+        requireText(vehicleData.getMotorcycleType(), "Debes indicar el tipo de motocicleta."));
+    return vehicleServiceClient.createMotorcycle(motorcycle).getId();
+  }
+
+  private <T extends Vehicle> T applyCommonVehicleAttributes(
+      T target, VehicleCreationRequest vehicleData, PurchaseSaleRequest request) {
+    target.setBrand(requireText(vehicleData.getBrand(), "La marca del vehículo es obligatoria."));
+    target.setModel(requireText(vehicleData.getModel(), "El modelo del vehículo es obligatorio."));
+    target.setCapacity(
+        requirePositiveInteger(vehicleData.getCapacity(), "La capacidad de pasajeros del vehículo es obligatoria."));
+    target.setLine(requireText(vehicleData.getLine(), "La línea del vehículo es obligatoria."));
+    target.setPlate(requireText(vehicleData.getPlate(), "La placa del vehículo es obligatoria.").toUpperCase());
+    target.setMotorNumber(
+        requireText(vehicleData.getMotorNumber(), "El número de motor del vehículo es obligatorio."));
+    target.setSerialNumber(
+        requireText(vehicleData.getSerialNumber(), "El número serial del vehículo es obligatorio."));
+    target.setChassisNumber(
+        requireText(vehicleData.getChassisNumber(), "El número de chasis del vehículo es obligatorio."));
+    target.setColor(requireText(vehicleData.getColor(), "El color del vehículo es obligatorio."));
+    target.setCityRegistered(
+        requireText(
+            vehicleData.getCityRegistered(), "La ciudad de matrícula del vehículo es obligatoria."));
+    target.setYear(requireValidYear(vehicleData.getYear()));
+    target.setMileage(
+        requireNonNegativeInteger(vehicleData.getMileage(), "El kilometraje del vehículo es obligatorio."));
+    target.setTransmission(
+        requireText(vehicleData.getTransmission(), "La transmisión del vehículo es obligatoria."));
+    target.setPurchasePrice(resolveVehiclePurchasePrice(vehicleData, request.getPurchasePrice()));
+    target.setSalePrice(resolveVehicleSalePrice(vehicleData.getSalePrice()));
+    target.setPhotoUrl(normalizeNullable(vehicleData.getPhotoUrl()));
+    target.setStatus("AVAILABLE");
+    return target;
+  }
+
   private void applyBusinessRules(
       ContractType contractType,
       PurchaseSaleRequest purchaseSaleRequest,
@@ -158,7 +252,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
       preparePurchaseRequest(purchaseSaleRequest);
       ensureNoActivePurchase(contractsByVehicle, excludedContractId, vehicleId);
     } else {
-      prepareSaleRequest(purchaseSaleRequest);
+      prepareSaleRequest(purchaseSaleRequest, contractsByVehicle);
       ensureSalePrerequisites(
           contractsByVehicle,
           excludedContractId,
@@ -168,14 +262,81 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   private void preparePurchaseRequest(PurchaseSaleRequest purchaseSaleRequest) {
-    purchaseSaleRequest.setSalePrice(0d);
+    Double targetSalePrice = null;
+    if (purchaseSaleRequest.getVehicleData() != null) {
+      targetSalePrice = purchaseSaleRequest.getVehicleData().getSalePrice();
+    }
+    if (targetSalePrice == null) {
+      targetSalePrice = purchaseSaleRequest.getSalePrice();
+    }
+    purchaseSaleRequest.setSalePrice(targetSalePrice != null ? targetSalePrice : 0d);
   }
 
-  private void prepareSaleRequest(PurchaseSaleRequest purchaseSaleRequest) {
+  private void prepareSaleRequest(
+      PurchaseSaleRequest purchaseSaleRequest, List<PurchaseSale> contractsByVehicle) {
     Double salePrice = purchaseSaleRequest.getSalePrice();
     if (salePrice == null || salePrice <= 0) {
       throw new IllegalArgumentException("El precio de venta debe ser mayor a cero.");
     }
+    purchaseSaleRequest.setPurchasePrice(
+        findLatestPurchasePrice(contractsByVehicle, purchaseSaleRequest.getPurchasePrice()));
+  }
+
+  private String requireText(String value, String message) {
+    if (!StringUtils.hasText(value)) {
+      throw new IllegalArgumentException(message);
+    }
+    return value.trim();
+  }
+
+  private Integer requirePositiveInteger(Integer value, String message) {
+    if (value == null || value <= 0) {
+      throw new IllegalArgumentException(message);
+    }
+    return value;
+  }
+
+  private Integer requireNonNegativeInteger(Integer value, String message) {
+    if (value == null || value < 0) {
+      throw new IllegalArgumentException(message);
+    }
+    return value;
+  }
+
+  private Integer requireValidYear(Integer value) {
+    Integer year = requirePositiveInteger(value, "El año del vehículo es obligatorio.");
+    if (year < 1950 || year > 2050) {
+      throw new IllegalArgumentException("El año del vehículo debe estar entre 1950 y 2050.");
+    }
+    return year;
+  }
+
+  private Double resolveVehiclePurchasePrice(
+      VehicleCreationRequest vehicleData, Double fallbackPurchasePrice) {
+    Double value =
+        vehicleData.getPurchasePrice() != null
+            ? vehicleData.getPurchasePrice()
+            : fallbackPurchasePrice;
+    if (value == null || value <= 0) {
+      throw new IllegalArgumentException(
+          "El precio de compra del vehículo debe ser mayor a cero.");
+    }
+    return value;
+  }
+
+  private Double resolveVehicleSalePrice(Double salePrice) {
+    if (salePrice == null) {
+      return 0d;
+    }
+    if (salePrice < 0) {
+      throw new IllegalArgumentException(
+          "El precio de venta del vehículo no puede ser negativo.");
+    }
+    return salePrice;
+  }
+
+  private String normalizeNullable(String value) {
+    return StringUtils.hasText(value) ? value.trim() : null;
   }
 
   private void applyContractAdjustments(
@@ -183,10 +344,33 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     purchaseSale.setContractType(purchaseSaleRequest.getContractType());
     purchaseSale.setContractStatus(purchaseSaleRequest.getContractStatus());
     if (purchaseSaleRequest.getContractType() == ContractType.PURCHASE) {
-      purchaseSale.setSalePrice(0d);
+      purchaseSale.setSalePrice(
+          Optional.ofNullable(purchaseSaleRequest.getSalePrice()).orElse(0d));
     } else {
       purchaseSale.setSalePrice(purchaseSaleRequest.getSalePrice());
     }
+  }
+
+  private Double findLatestPurchasePrice(
+      List<PurchaseSale> contractsByVehicle, Double fallbackPurchasePrice) {
+    return contractsByVehicle.stream()
+        .filter(contract -> contract.getContractType() == ContractType.PURCHASE)
+        .filter(
+            contract ->
+                EnumSet.of(ContractStatus.ACTIVE, ContractStatus.COMPLETED)
+                    .contains(contract.getContractStatus()))
+        .max(
+            Comparator.comparing(
+                PurchaseSale::getUpdatedAt, Comparator.nullsLast(Comparator.naturalOrder())))
+        .map(PurchaseSale::getPurchasePrice)
+        .orElseGet(
+            () -> {
+              if (fallbackPurchasePrice != null && fallbackPurchasePrice > 0) {
+                return fallbackPurchasePrice;
+              }
+              throw new IllegalArgumentException(
+                  "No se encontró una compra válida asociada al vehículo.");
+            });
   }
 
   private void ensureNoActivePurchase(
