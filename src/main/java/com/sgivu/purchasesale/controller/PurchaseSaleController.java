@@ -1,12 +1,17 @@
 package com.sgivu.purchasesale.controller;
 
 import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
+import com.sgivu.purchasesale.dto.PurchaseSaleFilterCriteria;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
+import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.service.PurchaseSaleDetailService;
 import com.sgivu.purchasesale.service.PurchaseSaleReportService;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
+import com.sgivu.purchasesale.enums.ContractStatus;
+import com.sgivu.purchasesale.enums.ContractType;
+import com.sgivu.purchasesale.enums.PaymentMethod;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -103,9 +108,50 @@ public class PurchaseSaleController {
       @PathVariable Integer page) {
     var pageable = PageRequest.of(page, 10);
     var pagedContracts = purchaseSaleService.findAll(pageable);
-    var detailed = purchaseSaleDetailService.toDetails(pagedContracts.getContent());
-    return ResponseEntity.ok(
-        new PageImpl<>(detailed, pagedContracts.getPageable(), pagedContracts.getTotalElements()));
+    return ResponseEntity.ok(toDetailPage(pagedContracts));
+  }
+
+  @GetMapping("/search")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<Page<PurchaseSaleDetailResponse>> searchContracts(
+      @RequestParam(defaultValue = "0") Integer page,
+      @RequestParam(defaultValue = "10") Integer size,
+      @RequestParam(required = false) ContractType contractType,
+      @RequestParam(required = false) ContractStatus contractStatus,
+      @RequestParam(required = false) Long clientId,
+      @RequestParam(required = false) Long userId,
+      @RequestParam(required = false) Long vehicleId,
+      @RequestParam(required = false) PaymentMethod paymentMethod,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate,
+      @RequestParam(required = false) Double minPurchasePrice,
+      @RequestParam(required = false) Double maxPurchasePrice,
+      @RequestParam(required = false) Double minSalePrice,
+      @RequestParam(required = false) Double maxSalePrice,
+      @RequestParam(required = false) String term) {
+
+    var pageable = PageRequest.of(page, size);
+    var criteria =
+        PurchaseSaleFilterCriteria.builder()
+            .contractType(contractType)
+            .contractStatus(contractStatus)
+            .clientId(clientId)
+            .userId(userId)
+            .vehicleId(vehicleId)
+            .paymentMethod(paymentMethod)
+            .startDate(startDate)
+            .endDate(endDate)
+            .minPurchasePrice(minPurchasePrice)
+            .maxPurchasePrice(maxPurchasePrice)
+            .minSalePrice(minSalePrice)
+            .maxSalePrice(maxSalePrice)
+            .term(trimToNull(term))
+            .build();
+
+    var filteredContracts = purchaseSaleService.search(criteria, pageable);
+    return ResponseEntity.ok(toDetailPage(filteredContracts));
   }
 
   @PutMapping("/{id}")
@@ -212,5 +258,18 @@ public class PurchaseSaleController {
   private String buildContentDisposition(String extension) {
     String timestamp = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
     return "attachment; filename=\"reporte-compras-ventas-" + timestamp + "." + extension + "\"";
+  }
+
+  private Page<PurchaseSaleDetailResponse> toDetailPage(Page<PurchaseSale> contracts) {
+    var detailed = purchaseSaleDetailService.toDetails(contracts.getContent());
+    return new PageImpl<>(detailed, contracts.getPageable(), contracts.getTotalElements());
+  }
+
+  private String trimToNull(String value) {
+    if (value == null) {
+      return null;
+    }
+    String normalized = value.trim();
+    return normalized.isEmpty() ? null : normalized;
   }
 }

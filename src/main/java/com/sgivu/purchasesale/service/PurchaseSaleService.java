@@ -1,5 +1,6 @@
 package com.sgivu.purchasesale.service;
 
+import com.sgivu.purchasesale.dto.PurchaseSaleFilterCriteria;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.entity.PurchaseSale;
 import java.util.List;
@@ -26,4 +27,6 @@ public interface PurchaseSaleService {
   List<PurchaseSale> findByUserId(Long userId);
 
   List<PurchaseSale> findByVehicleId(Long vehicleId);
+
+  Page<PurchaseSale> search(PurchaseSaleFilterCriteria criteria, Pageable pageable);
 }

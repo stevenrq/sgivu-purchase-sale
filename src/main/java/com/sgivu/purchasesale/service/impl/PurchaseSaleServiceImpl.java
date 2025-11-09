@@ -5,6 +5,7 @@ import com.sgivu.purchasesale.client.UserServiceClient;
 import com.sgivu.purchasesale.client.VehicleServiceClient;
 import com.sgivu.purchasesale.dto.Car;
 import com.sgivu.purchasesale.dto.Motorcycle;
+import com.sgivu.purchasesale.dto.PurchaseSaleFilterCriteria;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.Vehicle;
 import com.sgivu.purchasesale.dto.VehicleCreationRequest;
@@ -15,6 +16,7 @@ import com.sgivu.purchasesale.enums.VehicleType;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
+import com.sgivu.purchasesale.specification.PurchaseSaleSpecifications;
 import java.util.Comparator;
 import java.util.EnumSet;
 import java.util.List;
@@ -84,6 +86,12 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   @Override
   public Page<PurchaseSale> findAll(Pageable pageable) {
     return purchaseSaleRepository.findAll(pageable);
+  }
+
+  @Override
+  public Page<PurchaseSale> search(PurchaseSaleFilterCriteria criteria, Pageable pageable) {
+    return purchaseSaleRepository.findAll(
+        PurchaseSaleSpecifications.withFilters(criteria), pageable);
   }
 
   @Transactional
