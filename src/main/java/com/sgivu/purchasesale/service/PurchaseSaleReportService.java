@@ -25,6 +25,7 @@ import java.nio.charset.StandardCharsets;
 import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.EnumMap;
@@ -48,6 +49,8 @@ public class PurchaseSaleReportService {
 
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+  private static final ZoneId SOURCE_ZONE = ZoneId.of("UTC");
+  private static final ZoneId TARGET_ZONE = ZoneId.of("America/Bogota");
   private static final Locale REPORT_LOCALE = new Locale("es", "CO");
   private static final String[] DATASET_HEADERS = {
     "Tipo de contrato",
@@ -302,7 +305,11 @@ public class PurchaseSaleReportService {
   }
 
   private String formatDate(LocalDateTime dateTime) {
-    return dateTime == null ? "" : dateTime.format(DATE_TIME_FORMATTER);
+    if (dateTime == null) {
+      return "";
+    }
+
+    return dateTime.atZone(SOURCE_ZONE).withZoneSameInstant(TARGET_ZONE).format(DATE_TIME_FORMATTER);
   }
 
   private String buildPeriodText(LocalDate startDate, LocalDate endDate) {
