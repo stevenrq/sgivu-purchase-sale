@@ -63,6 +63,18 @@ class PurchaseSaleReportServiceTest {
     verify(purchaseSaleRepository).findAll(any(Sort.class));
   }
 
+  @Test
+  @DisplayName("generateCsv debe producir un arreglo de bytes no vacío")
+  void generateCsv_ShouldReturnDocumentBytes() {
+    when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
+
+    byte[] csv = purchaseSaleReportService.generateCsv(null, null);
+
+    assertThat(csv).isNotEmpty();
+    verify(purchaseSaleRepository).findAll(any(Sort.class));
+  }
+
   private PurchaseSale sampleContract() {
     PurchaseSale purchaseSale = new PurchaseSale();
     purchaseSale.setId(1L);
@@ -93,6 +105,11 @@ class PurchaseSaleReportServiceTest {
     detail.setContractType(ContractType.SALE);
     detail.setContractStatus(ContractStatus.ACTIVE);
     detail.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
+    detail.setPaymentLimitations("Máx 5M en efectivo");
+    detail.setPaymentTerms("Pago contra entrega");
+    detail.setObservations("Contrato de prueba");
+    detail.setCreatedAt(LocalDateTime.now().minusDays(1));
+    detail.setUpdatedAt(LocalDateTime.now());
     detail.setClientSummary(
         ClientSummary.builder()
             .id(10L)
@@ -100,6 +117,7 @@ class PurchaseSaleReportServiceTest {
             .name("Juan Pérez")
             .identifier("CC 123456")
             .email("juan@example.com")
+            .phoneNumber(3219876543L)
             .build());
     detail.setUserSummary(
         UserSummary.builder()

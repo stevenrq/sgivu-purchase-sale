@@ -19,10 +19,16 @@ import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
 import com.sgivu.purchasesale.dto.UserSummary;
 import com.sgivu.purchasesale.dto.VehicleSummary;
 import java.io.ByteArrayOutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
+import java.nio.charset.StandardCharsets;
+import java.text.NumberFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.Arrays;
 import java.util.EnumMap;
+import java.util.Locale;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,6 +48,32 @@ public class PurchaseSaleReportService {
 
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
+  private static final Locale REPORT_LOCALE = new Locale("es", "CO");
+  private static final String[] DATASET_HEADERS = {
+    "Tipo de contrato",
+    "Estado del contrato",
+    "Cliente",
+    "Tipo de cliente",
+    "Documento del cliente",
+    "Email del cliente",
+    "Teléfono del cliente",
+    "Usuario responsable",
+    "Usuario (username)",
+    "Email del usuario",
+    "Marca del vehículo",
+    "Modelo del vehículo",
+    "Placa del vehículo",
+    "Tipo de vehículo",
+    "Estado del vehículo",
+    "Precio de compra",
+    "Precio de venta",
+    "Método de pago",
+    "Términos de pago",
+    "Limitaciones de pago",
+    "Observaciones",
+    "Fecha de creación",
+    "Última actualización"
+  };
 
   private final PurchaseSaleRepository purchaseSaleRepository;
   private final PurchaseSaleDetailService purchaseSaleDetailService;
@@ -116,49 +148,75 @@ public class PurchaseSaleReportService {
       periodCell.setCellValue(buildPeriodText(startDate, endDate));
       periodCell.setCellStyle(periodStyle);
 
-      String[] headers = {
-        "ID",
-        "Tipo",
-        "Estado",
-        "Cliente",
-        "Usuario",
-        "Vehículo",
-        "Precio de compra",
-        "Precio de venta",
-        "Método de pago",
-        "Creado",
-        "Actualizado"
-      };
-
       Row headerRow = sheet.createRow(2);
-      for (int i = 0; i < headers.length; i++) {
+      for (int i = 0; i < DATASET_HEADERS.length; i++) {
         Cell cell = headerRow.createCell(i);
-        cell.setCellValue(headers[i]);
+        cell.setCellValue(DATASET_HEADERS[i]);
         cell.setCellStyle(headerStyle);
       }
 
       int rowIdx = 3;
       for (PurchaseSaleDetailResponse contract : details) {
         Row row = sheet.createRow(rowIdx++);
-        row.createCell(0).setCellValue(contract.getId());
-        row.createCell(1).setCellValue(getContractTypeLabel(contract.getContractType()));
-        row.createCell(2).setCellValue(getStatusLabel(contract.getContractStatus()));
-        row.createCell(3).setCellValue(formatClient(contract.getClientSummary()));
-        row.createCell(4).setCellValue(formatUser(contract.getUserSummary()));
-        row.createCell(5).setCellValue(formatVehicle(contract.getVehicleSummary()));
-        row.createCell(6).setCellValue(contract.getPurchasePrice());
-        row.createCell(7).setCellValue(contract.getSalePrice());
-        row.createCell(8).setCellValue(getPaymentMethodLabel(contract.getPaymentMethod()));
-        row.createCell(9).setCellValue(formatDate(contract.getCreatedAt()));
-        row.createCell(10).setCellValue(formatDate(contract.getUpdatedAt()));
+        int column = 0;
+        setCellValue(row, column++, getContractTypeLabel(contract.getContractType()));
+        setCellValue(row, column++, getStatusLabel(contract.getContractStatus()));
+        setCellValue(row, column++, getClientName(contract.getClientSummary()));
+        setCellValue(row, column++, getClientTypeLabel(contract.getClientSummary() == null ? null : contract.getClientSummary().getType()));
+        setCellValue(row, column++, getClientIdentifier(contract.getClientSummary()));
+        setCellValue(row, column++, getClientEmail(contract.getClientSummary()));
+        setCellValue(row, column++, getClientPhone(contract.getClientSummary()));
+        setCellValue(row, column++, getUserName(contract.getUserSummary()));
+        setCellValue(row, column++, getUsername(contract.getUserSummary()));
+        setCellValue(row, column++, getUserEmail(contract.getUserSummary()));
+        setCellValue(row, column++, getVehicleBrand(contract.getVehicleSummary()));
+        setCellValue(row, column++, getVehicleModel(contract.getVehicleSummary()));
+        setCellValue(row, column++, getVehiclePlate(contract.getVehicleSummary()));
+        setCellValue(row, column++, getVehicleTypeLabel(contract.getVehicleSummary() == null ? null : contract.getVehicleSummary().getType()));
+        setCellValue(row, column++, getVehicleStatus(contract.getVehicleSummary()));
+        setNumericCellValue(row, column++, contract.getPurchasePrice());
+        setNumericCellValue(row, column++, contract.getSalePrice());
+        setCellValue(row, column++, getPaymentMethodLabel(contract.getPaymentMethod()));
+        setCellValue(row, column++, safeText(contract.getPaymentTerms(), ""));
+        setCellValue(row, column++, safeText(contract.getPaymentLimitations(), ""));
+        setCellValue(row, column++, safeText(contract.getObservations(), ""));
+        setCellValue(row, column++, formatDate(contract.getCreatedAt()));
+        setCellValue(row, column++, formatDate(contract.getUpdatedAt()));
       }
 
-      autoSizeColumns(sheet, headers.length);
+      autoSizeColumns(sheet, DATASET_HEADERS.length);
 
       workbook.write(outputStream);
       return outputStream.toByteArray();
     } catch (Exception ex) {
       throw new IllegalStateException("Error al generar el reporte en Excel", ex);
+    }
+  }
+
+  public byte[] generateCsv(LocalDate startDate, LocalDate endDate) {
+    List<PurchaseSale> contracts = findContracts(startDate, endDate);
+    List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
+
+    try (ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+        OutputStreamWriter outputStreamWriter =
+            new OutputStreamWriter(outputStream, StandardCharsets.UTF_8);
+        PrintWriter writer = new PrintWriter(outputStreamWriter)) {
+      writer.println("Periodo," + escapeCsvValue(buildPeriodText(startDate, endDate)));
+      writer.println();
+      writeCsvRow(writer, DATASET_HEADERS);
+
+      if (details.isEmpty()) {
+        writer.println(escapeCsvValue("No existen registros para el periodo seleccionado."));
+      } else {
+        for (PurchaseSaleDetailResponse contract : details) {
+          writeCsvRow(writer, buildCsvRow(contract));
+        }
+      }
+
+      writer.flush();
+      return outputStream.toByteArray();
+    } catch (Exception ex) {
+      throw new IllegalStateException("Error al generar el reporte en CSV", ex);
     }
   }
 
@@ -180,46 +238,39 @@ public class PurchaseSaleReportService {
   }
 
   private PdfPTable buildPdfTable(List<PurchaseSaleDetailResponse> contracts) {
-    float[] columnWidths = {1.2f, 1.5f, 1.5f, 1.5f, 1.5f, 1.5f, 1.6f, 1.6f, 1.8f, 1.6f, 1.6f};
+    float[] columnWidths = {1.5f, 2.0f, 1.7f, 1.9f, 1.9f, 1.6f};
     PdfPTable table = new PdfPTable(columnWidths);
     table.setWidthPercentage(100);
 
     String[] headers = {
-      "ID",
-      "Tipo",
-      "Estado",
+      "Contrato",
       "Cliente",
-      "Usuario",
+      "Usuario responsable",
       "Vehículo",
-      "Precio compra",
-      "Precio venta",
-      "Método pago",
-      "Creado",
-      "Actualizado"
+      "Condiciones financieras",
+      "Fechas"
     };
 
     for (String header : headers) {
       PdfPCell headerCell =
           new PdfPCell(new Phrase(header, FontFactory.getFont(FontFactory.HELVETICA_BOLD, 10)));
       headerCell.setHorizontalAlignment(Element.ALIGN_CENTER);
-      headerCell.setPadding(6f);
+      headerCell.setPaddingTop(10f);
+      headerCell.setPaddingBottom(10f);
+      headerCell.setPaddingLeft(6f);
+      headerCell.setPaddingRight(6f);
       headerCell.setBackgroundColor(new java.awt.Color(242, 242, 242));
       headerCell.setBorder(Rectangle.BOX);
       table.addCell(headerCell);
     }
 
     for (PurchaseSaleDetailResponse contract : contracts) {
-      addCell(table, contract.getId());
-      addCell(table, getContractTypeLabel(contract.getContractType()));
-      addCell(table, getStatusLabel(contract.getContractStatus()));
-      addCell(table, formatClient(contract.getClientSummary()));
-      addCell(table, formatUser(contract.getUserSummary()));
-      addCell(table, formatVehicle(contract.getVehicleSummary()));
-      addCell(table, contract.getPurchasePrice());
-      addCell(table, contract.getSalePrice());
-      addCell(table, getPaymentMethodLabel(contract.getPaymentMethod()));
-      addCell(table, formatDate(contract.getCreatedAt()));
-      addCell(table, formatDate(contract.getUpdatedAt()));
+      addCell(table, formatContractBlock(contract));
+      addCell(table, formatClientBlock(contract.getClientSummary()));
+      addCell(table, formatUserBlock(contract.getUserSummary()));
+      addCell(table, formatVehicleBlock(contract.getVehicleSummary()));
+      addCell(table, formatFinanceBlock(contract));
+      addCell(table, formatTimelineBlock(contract));
     }
 
     if (contracts.isEmpty()) {
@@ -234,9 +285,19 @@ public class PurchaseSaleReportService {
     return table;
   }
 
-  private void addCell(PdfPTable table, Object value) {
-    PdfPCell cell = new PdfPCell(new Phrase(value != null ? value.toString() : ""));
-    cell.setPadding(5f);
+  private void addCell(PdfPTable table, String value) {
+    Paragraph paragraph = new Paragraph(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 9));
+    paragraph.setMultipliedLeading(1.3f);
+    paragraph.setSpacingBefore(2f);
+    paragraph.setSpacingAfter(4f);
+
+    PdfPCell cell = new PdfPCell();
+    cell.addElement(paragraph);
+    cell.setPaddingTop(10f);
+    cell.setPaddingBottom(10f);
+    cell.setPaddingLeft(8f);
+    cell.setPaddingRight(8f);
+    cell.setVerticalAlignment(Element.ALIGN_TOP);
     table.addCell(cell);
   }
 
@@ -254,40 +315,202 @@ public class PurchaseSaleReportService {
     return "Periodo: " + start + " - " + end;
   }
 
-  private String formatClient(ClientSummary clientSummary) {
+  private String formatContractBlock(PurchaseSaleDetailResponse contract) {
+    return new StringBuilder()
+        .append("Tipo: ")
+        .append(getContractTypeLabel(contract.getContractType()))
+        .append('\n')
+        .append("Estado: ")
+        .append(getStatusLabel(contract.getContractStatus()))
+        .append('\n')
+        .append("Método de pago: ")
+        .append(getPaymentMethodLabel(contract.getPaymentMethod()))
+        .append('\n')
+        .append("Observaciones: ")
+        .append(safeText(contract.getObservations(), "Sin observaciones"))
+        .toString();
+  }
+
+  private String formatClientBlock(ClientSummary clientSummary) {
     if (clientSummary == null) {
-      return "N/D";
+      return "Nombre: N/D";
     }
 
-    StringBuilder builder = new StringBuilder();
-    builder.append(clientSummary.getName() != null ? clientSummary.getName() : "Cliente");
-    builder.append(" (ID ").append(clientSummary.getId()).append(")");
-    if (clientSummary.getIdentifier() != null) {
-      builder.append(" - ").append(clientSummary.getIdentifier());
-    }
-    return builder.toString();
+    return new StringBuilder()
+        .append("Nombre: ")
+        .append(safeText(clientSummary.getName(), "No registrado"))
+        .append('\n')
+        .append("Tipo: ")
+        .append(safeText(getClientTypeLabel(clientSummary.getType()), "N/D"))
+        .append('\n')
+        .append("Documento: ")
+        .append(safeText(clientSummary.getIdentifier(), "N/D"))
+        .append('\n')
+        .append("Email: ")
+        .append(safeText(clientSummary.getEmail(), "N/D"))
+        .append('\n')
+        .append("Teléfono: ")
+        .append(formatPhoneNumber(clientSummary.getPhoneNumber()))
+        .toString();
   }
 
-  private String formatUser(UserSummary userSummary) {
+  private String formatUserBlock(UserSummary userSummary) {
     if (userSummary == null) {
-      return "N/D";
+      return "Gestor: N/D";
     }
-    String name = userSummary.getFullName() != null ? userSummary.getFullName() : "Usuario";
-    String username = userSummary.getUsername() != null ? userSummary.getUsername() : "N/D";
-    return String.format("%s (@%s)", name, username);
+
+    return new StringBuilder()
+        .append("Gestor: ")
+        .append(safeText(userSummary.getFullName(), "Sin asignar"))
+        .append('\n')
+        .append("Usuario: @")
+        .append(safeText(userSummary.getUsername(), "N/D"))
+        .append('\n')
+        .append("Email: ")
+        .append(safeText(userSummary.getEmail(), "N/D"))
+        .toString();
   }
 
-  private String formatVehicle(VehicleSummary vehicleSummary) {
+  private String formatVehicleBlock(VehicleSummary vehicleSummary) {
     if (vehicleSummary == null) {
-      return "N/D";
+      return "Vehículo: N/D";
     }
 
-    String plate = vehicleSummary.getPlate() != null ? vehicleSummary.getPlate() : "N/D";
-    return String.format(
-        "%s %s - %s",
-        vehicleSummary.getBrand() != null ? vehicleSummary.getBrand() : "Vehículo",
-        vehicleSummary.getModel() != null ? vehicleSummary.getModel() : "N/D",
-        plate);
+    return new StringBuilder()
+        .append("Tipo: ")
+        .append(safeText(getVehicleTypeLabel(vehicleSummary.getType()), "N/D"))
+        .append('\n')
+        .append("Modelo: ")
+        .append(
+            safeText(vehicleSummary.getBrand(), "Marca")
+                + " "
+                + safeText(vehicleSummary.getModel(), "Modelo"))
+        .append('\n')
+        .append("Placa: ")
+        .append(safeText(vehicleSummary.getPlate(), "N/D"))
+        .append('\n')
+        .append("Estado: ")
+        .append(safeText(vehicleSummary.getStatus(), "N/D"))
+        .toString();
+  }
+
+  private String formatFinanceBlock(PurchaseSaleDetailResponse contract) {
+    return new StringBuilder()
+        .append("Precio compra: ")
+        .append(formatCurrency(contract.getPurchasePrice()))
+        .append('\n')
+        .append("Precio venta: ")
+        .append(formatCurrency(contract.getSalePrice()))
+        .append('\n')
+        .append("Términos: ")
+        .append(safeText(contract.getPaymentTerms(), "No especificados"))
+        .append('\n')
+        .append("Limitaciones: ")
+        .append(safeText(contract.getPaymentLimitations(), "Sin restricciones"))
+        .toString();
+  }
+
+  private String formatTimelineBlock(PurchaseSaleDetailResponse contract) {
+    return new StringBuilder()
+        .append("Creado: ")
+        .append(formatDate(contract.getCreatedAt()))
+        .append('\n')
+        .append("Actualizado: ")
+        .append(formatDate(contract.getUpdatedAt()))
+        .toString();
+  }
+
+  private String formatCurrency(Double value) {
+    if (value == null) {
+      return "N/D";
+    }
+    NumberFormat formatter = NumberFormat.getCurrencyInstance(REPORT_LOCALE);
+    formatter.setMaximumFractionDigits(2);
+    formatter.setMinimumFractionDigits(0);
+    return formatter.format(value);
+  }
+
+  private String formatDecimal(Double value) {
+    if (value == null) {
+      return "";
+    }
+    return String.format(Locale.US, "%.2f", value);
+  }
+
+  private String formatPhoneNumber(Long phoneNumber) {
+    return phoneNumber == null ? "N/D" : String.valueOf(phoneNumber);
+  }
+
+  private String getClientTypeLabel(String type) {
+    if (type == null) {
+      return "";
+    }
+    return switch (type.toUpperCase()) {
+      case "PERSON" -> "Persona";
+      case "COMPANY" -> "Empresa";
+      default -> type;
+    };
+  }
+
+  private String getVehicleTypeLabel(String type) {
+    if (type == null) {
+      return "";
+    }
+    return switch (type.toUpperCase()) {
+      case "CAR" -> "Automóvil";
+      case "MOTORCYCLE" -> "Motocicleta";
+      default -> type;
+    };
+  }
+
+  private String safeText(String value, String fallback) {
+    return (value == null || value.isBlank()) ? fallback : value;
+  }
+
+  private String getClientName(ClientSummary summary) {
+    return summary == null ? "" : safeText(summary.getName(), "");
+  }
+
+  private String getClientIdentifier(ClientSummary summary) {
+    return summary == null ? "" : safeText(summary.getIdentifier(), "");
+  }
+
+  private String getClientEmail(ClientSummary summary) {
+    return summary == null ? "" : safeText(summary.getEmail(), "");
+  }
+
+  private String getClientPhone(ClientSummary summary) {
+    return summary == null || summary.getPhoneNumber() == null
+        ? ""
+        : String.valueOf(summary.getPhoneNumber());
+  }
+
+  private String getUserName(UserSummary summary) {
+    return summary == null ? "" : safeText(summary.getFullName(), "");
+  }
+
+  private String getUsername(UserSummary summary) {
+    return summary == null ? "" : safeText(summary.getUsername(), "");
+  }
+
+  private String getUserEmail(UserSummary summary) {
+    return summary == null ? "" : safeText(summary.getEmail(), "");
+  }
+
+  private String getVehicleBrand(VehicleSummary summary) {
+    return summary == null ? "" : safeText(summary.getBrand(), "");
+  }
+
+  private String getVehicleModel(VehicleSummary summary) {
+    return summary == null ? "" : safeText(summary.getModel(), "");
+  }
+
+  private String getVehiclePlate(VehicleSummary summary) {
+    return summary == null ? "" : safeText(summary.getPlate(), "");
+  }
+
+  private String getVehicleStatus(VehicleSummary summary) {
+    return summary == null ? "" : safeText(summary.getStatus(), "");
   }
 
   private void initialiseLabels() {
@@ -332,5 +555,62 @@ public class PurchaseSaleReportService {
         sheet.setColumnWidth(i, 20 * 256);
       }
     }
+  }
+
+  private void setCellValue(Row row, int columnIndex, String value) {
+    row.createCell(columnIndex).setCellValue(value == null ? "" : value);
+  }
+
+  private void setNumericCellValue(Row row, int columnIndex, Double value) {
+    if (value == null) {
+      row.createCell(columnIndex).setBlank();
+    } else {
+      row.createCell(columnIndex).setCellValue(value);
+    }
+  }
+
+  private void writeCsvRow(PrintWriter writer, String... values) {
+    String row =
+        Arrays.stream(values).map(this::escapeCsvValue).collect(Collectors.joining(","));
+    writer.println(row);
+  }
+
+  private String[] buildCsvRow(PurchaseSaleDetailResponse contract) {
+    ClientSummary client = contract.getClientSummary();
+    UserSummary user = contract.getUserSummary();
+    VehicleSummary vehicle = contract.getVehicleSummary();
+    return new String[] {
+      getContractTypeLabel(contract.getContractType()),
+      getStatusLabel(contract.getContractStatus()),
+      getClientName(client),
+      safeText(getClientTypeLabel(client == null ? null : client.getType()), ""),
+      getClientIdentifier(client),
+      getClientEmail(client),
+      getClientPhone(client),
+      getUserName(user),
+      getUsername(user),
+      getUserEmail(user),
+      getVehicleBrand(vehicle),
+      getVehicleModel(vehicle),
+      getVehiclePlate(vehicle),
+      safeText(getVehicleTypeLabel(vehicle == null ? null : vehicle.getType()), ""),
+      getVehicleStatus(vehicle),
+      formatDecimal(contract.getPurchasePrice()),
+      formatDecimal(contract.getSalePrice()),
+      getPaymentMethodLabel(contract.getPaymentMethod()),
+      safeText(contract.getPaymentTerms(), ""),
+      safeText(contract.getPaymentLimitations(), ""),
+      safeText(contract.getObservations(), ""),
+      formatDate(contract.getCreatedAt()),
+      formatDate(contract.getUpdatedAt())
+    };
+  }
+
+  private String escapeCsvValue(String value) {
+    if (value == null) {
+      return "\"\"";
+    }
+    String sanitized = value.replace("\"", "\"\"");
+    return "\"" + sanitized + "\"";
   }
 }

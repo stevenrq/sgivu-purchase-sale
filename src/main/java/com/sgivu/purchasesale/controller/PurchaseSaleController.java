@@ -195,6 +195,20 @@ public class PurchaseSaleController {
         .body(report);
   }
 
+  @GetMapping(value = "/report/csv", produces = "text/csv")
+  @PreAuthorize("hasAuthority('purchase_sale:read')")
+  public ResponseEntity<byte[]> exportCsvReport(
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate startDate,
+      @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
+          LocalDate endDate) {
+    byte[] report = purchaseSaleReportService.generateCsv(startDate, endDate);
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("csv"))
+        .contentType(MediaType.parseMediaType("text/csv"))
+        .body(report);
+  }
+
   private String buildContentDisposition(String extension) {
     String timestamp = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
     return "attachment; filename=\"reporte-compras-ventas-" + timestamp + "." + extension + "\"";
