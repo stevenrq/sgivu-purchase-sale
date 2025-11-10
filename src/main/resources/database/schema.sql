@@ -1,3 +1,7 @@
+drop sequence if exists public.purchase_sales_id_seq cascade;
+
+drop table if exists public.purchase_sales cascade;
+
 CREATE SEQUENCE IF NOT EXISTS purchase_sales_id_seq START WITH 1 INCREMENT BY 1;
 
 CREATE TABLE IF NOT EXISTS purchase_sales
