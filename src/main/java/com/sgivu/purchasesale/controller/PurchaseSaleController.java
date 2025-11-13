@@ -5,13 +5,13 @@ import com.sgivu.purchasesale.dto.PurchaseSaleFilterCriteria;
 import com.sgivu.purchasesale.dto.PurchaseSaleRequest;
 import com.sgivu.purchasesale.dto.PurchaseSaleResponse;
 import com.sgivu.purchasesale.entity.PurchaseSale;
+import com.sgivu.purchasesale.enums.ContractStatus;
+import com.sgivu.purchasesale.enums.ContractType;
+import com.sgivu.purchasesale.enums.PaymentMethod;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.service.PurchaseSaleDetailService;
 import com.sgivu.purchasesale.service.PurchaseSaleReportService;
 import com.sgivu.purchasesale.service.PurchaseSaleService;
-import com.sgivu.purchasesale.enums.ContractStatus;
-import com.sgivu.purchasesale.enums.ContractType;
-import com.sgivu.purchasesale.enums.PaymentMethod;
 import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
@@ -88,8 +88,7 @@ public class PurchaseSaleController {
   @GetMapping("/detailed")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleDetailResponse>> getAllDetailed() {
-    return ResponseEntity.ok(
-        purchaseSaleDetailService.toDetails(purchaseSaleService.findAll()));
+    return ResponseEntity.ok(purchaseSaleDetailService.toDetails(purchaseSaleService.findAll()));
   }
 
   @GetMapping("/page/{page}")

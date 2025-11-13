@@ -52,6 +52,14 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     this.userServiceClient = userServiceClient;
   }
 
+  /**
+   * Crea un nuevo contrato de compra o venta aplicando todas las reglas de negocio. Normaliza el
+   * tipo de contrato, resuelve IDs en servicios externos, registra el vehículo si corresponde,
+   * valida precios y garantiza que no existan contratos conflictivos sobre el mismo vehículo.
+   *
+   * @param purchaseSaleRequest datos del contrato a registrar
+   * @return contrato creado y persistido
+   */
   @Transactional
   @Override
   public PurchaseSale create(PurchaseSaleRequest purchaseSaleRequest) {
@@ -61,7 +69,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     Long resolvedVehicleId = resolveVehicleReference(contractType, purchaseSaleRequest);
     List<PurchaseSale> contractsByVehicle =
         purchaseSaleRepository.findByVehicleId(resolvedVehicleId);
-    applyBusinessRules(contractType, purchaseSaleRequest, contractsByVehicle, null, resolvedVehicleId);
+    applyBusinessRules(
+        contractType, purchaseSaleRequest, contractsByVehicle, null, resolvedVehicleId);
 
     PurchaseSale purchaseSale = purchaseSaleMapper.toPurchaseSale(purchaseSaleRequest);
     applyContractAdjustments(purchaseSale, purchaseSaleRequest);
@@ -94,6 +103,15 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
         PurchaseSaleSpecifications.withFilters(criteria), pageable);
   }
 
+  /**
+   * Actualiza un contrato existente manteniendo el tipo original (no modificable), aplicando
+   * nuevamente reglas de negocio, validando precios y resolviendo IDs en servicios externos. Evita
+   * inconsistencias respecto a otros contratos asociados al mismo vehículo.
+   *
+   * @param id ID del contrato a actualizar
+   * @param purchaseSaleRequest datos actualizados del contrato
+   * @return contrato actualizado si existe
+   */
   @Transactional
   @Override
   public Optional<PurchaseSale> update(Long id, PurchaseSaleRequest purchaseSaleRequest) {
@@ -153,6 +171,13 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return purchaseSaleRepository.findByVehicleId(resolvedVehicleId);
   }
 
+  /**
+   * Normaliza el tipo de contrato asignando un valor por defecto (PURCHASE) si no se especifica y
+   * configura el estado inicial si está ausente.
+   *
+   * @param purchaseSaleRequest request del contrato
+   * @return tipo de contrato resultante
+   */
   private ContractType normalizeContractType(PurchaseSaleRequest purchaseSaleRequest) {
     ContractType contractType =
         Optional.ofNullable(purchaseSaleRequest.getContractType()).orElse(ContractType.PURCHASE);
@@ -163,6 +188,15 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return contractType;
   }
 
+  /**
+   * Determina cómo obtener el vehículo asociado al contrato dependiendo del tipo: - Para compras:
+   * crea el vehículo si no se envía un ID. - Para ventas: exige un ID válido y prohíbe el envío de
+   * datos detallados.
+   *
+   * @param contractType tipo de contrato
+   * @param purchaseSaleRequest request con ID o datos del vehículo
+   * @return ID del vehículo asociado
+   */
   private Long resolveVehicleReference(
       ContractType contractType, PurchaseSaleRequest purchaseSaleRequest) {
     if (contractType == ContractType.PURCHASE) {
@@ -187,6 +221,13 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return resolveVehicleId(purchaseSaleRequest.getVehicleId());
   }
 
+  /**
+   * Registra un nuevo vehículo en el servicio externo según el tipo especificado (carro o
+   * motocicleta). Valida obligatoriamente todos los atributos necesarios.
+   *
+   * @param purchaseSaleRequest request que contiene los datos del vehículo
+   * @return ID del vehículo registrado
+   */
   private Long registerVehicleForPurchase(PurchaseSaleRequest purchaseSaleRequest) {
     VehicleCreationRequest vehicleData = purchaseSaleRequest.getVehicleData();
     if (vehicleData == null) {
@@ -206,7 +247,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
       car.setBodyType(
           requireText(vehicleData.getBodyType(), "La carrocería del automóvil es obligatoria."));
       car.setFuelType(
-          requireText(vehicleData.getFuelType(), "El tipo de combustible del automóvil es obligatorio."));
+          requireText(
+              vehicleData.getFuelType(), "El tipo de combustible del automóvil es obligatorio."));
       car.setNumberOfDoors(
           requirePositiveInteger(
               vehicleData.getNumberOfDoors(), "Debes indicar el número de puertas del automóvil."));
@@ -220,27 +262,41 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return vehicleServiceClient.createMotorcycle(motorcycle).getId();
   }
 
+  /**
+   * Aplica y valida atributos comunes para cualquier tipo de vehículo al momento de registrarlo
+   * (marca, modelo, placa, motor, ciudad, chasis, año, transmisión, kilometraje, precios, etc.).
+   *
+   * @param target instancia del vehículo a completar
+   * @param vehicleData datos enviados por el cliente
+   * @param request request del contrato (para fallback de precios)
+   * @return vehículo con atributos comunes inicializados
+   */
   private <T extends Vehicle> T applyCommonVehicleAttributes(
       T target, VehicleCreationRequest vehicleData, PurchaseSaleRequest request) {
     target.setBrand(requireText(vehicleData.getBrand(), "La marca del vehículo es obligatoria."));
     target.setModel(requireText(vehicleData.getModel(), "El modelo del vehículo es obligatorio."));
     target.setCapacity(
-        requirePositiveInteger(vehicleData.getCapacity(), "La capacidad de pasajeros del vehículo es obligatoria."));
+        requirePositiveInteger(
+            vehicleData.getCapacity(), "La capacidad de pasajeros del vehículo es obligatoria."));
     target.setLine(requireText(vehicleData.getLine(), "La línea del vehículo es obligatoria."));
-    target.setPlate(requireText(vehicleData.getPlate(), "La placa del vehículo es obligatoria.").toUpperCase());
+    target.setPlate(
+        requireText(vehicleData.getPlate(), "La placa del vehículo es obligatoria.").toUpperCase());
     target.setMotorNumber(
-        requireText(vehicleData.getMotorNumber(), "El número de motor del vehículo es obligatorio."));
+        requireText(
+            vehicleData.getMotorNumber(), "El número de motor del vehículo es obligatorio."));
     target.setSerialNumber(
-        requireText(vehicleData.getSerialNumber(), "El número serial del vehículo es obligatorio."));
+        requireText(
+            vehicleData.getSerialNumber(), "El número serial del vehículo es obligatorio."));
     target.setChassisNumber(
-        requireText(vehicleData.getChassisNumber(), "El número de chasis del vehículo es obligatorio."));
+        requireText(
+            vehicleData.getChassisNumber(), "El número de chasis del vehículo es obligatorio."));
     target.setColor(requireText(vehicleData.getColor(), "El color del vehículo es obligatorio."));
     target.setCityRegistered(
         requireText(
-            vehicleData.getCityRegistered(), "La ciudad de matrícula del vehículo es obligatoria."));
+            vehicleData.getCityRegistered(),
+            "La ciudad de matrícula del vehículo es obligatoria."));
     target.setYear(requireValidYear(vehicleData.getYear()));
-    target.setMileage(
-        requireNonNegativeInteger(vehicleData.getMileage(), "El kilometraje del vehículo es obligatorio."));
+    target.setMileage(requireNonNegativeInteger(vehicleData.getMileage()));
     target.setTransmission(
         requireText(vehicleData.getTransmission(), "La transmisión del vehículo es obligatoria."));
     target.setPurchasePrice(resolveVehiclePurchasePrice(vehicleData, request.getPurchasePrice()));
@@ -250,6 +306,20 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return target;
   }
 
+  /**
+   * Ejecuta todas las reglas de negocio relevantes según el tipo de contrato:
+   *
+   * <ul>
+   *   <li>Compras: asegura que no exista una compra activa o pendiente para el vehículo.
+   *   <li>Ventas: valida que exista una compra previa válida y que no haya otra venta activa.
+   * </ul>
+   *
+   * @param contractType tipo del contrato
+   * @param purchaseSaleRequest datos del contrato
+   * @param contractsByVehicle contratos previos del mismo vehículo
+   * @param excludedContractId ID a excluir (en caso de actualización)
+   * @param vehicleId ID del vehículo asociado
+   */
   private void applyBusinessRules(
       ContractType contractType,
       PurchaseSaleRequest purchaseSaleRequest,
@@ -269,6 +339,12 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
+  /**
+   * Prepara y valida los valores específicos para un contrato de compra, asignando un precio de
+   * venta objetivo si no se proporcionó explícitamente.
+   *
+   * @param purchaseSaleRequest request del contrato de compra
+   */
   private void preparePurchaseRequest(PurchaseSaleRequest purchaseSaleRequest) {
     Double targetSalePrice = null;
     if (purchaseSaleRequest.getVehicleData() != null) {
@@ -280,6 +356,13 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     purchaseSaleRequest.setSalePrice(targetSalePrice != null ? targetSalePrice : 0d);
   }
 
+  /**
+   * Prepara y valida los datos de un contrato de venta, asegurando que el precio de venta sea
+   * válido y estableciendo el precio de compra desde compras previas.
+   *
+   * @param purchaseSaleRequest request del contrato de venta
+   * @param contractsByVehicle historial de contratos del vehículo
+   */
   private void prepareSaleRequest(
       PurchaseSaleRequest purchaseSaleRequest, List<PurchaseSale> contractsByVehicle) {
     Double salePrice = purchaseSaleRequest.getSalePrice();
@@ -304,9 +387,9 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return value;
   }
 
-  private Integer requireNonNegativeInteger(Integer value, String message) {
+  private Integer requireNonNegativeInteger(Integer value) {
     if (value == null || value < 0) {
-      throw new IllegalArgumentException(message);
+      throw new IllegalArgumentException("El kilometraje del vehículo es obligatorio.");
     }
     return value;
   }
@@ -326,8 +409,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
             ? vehicleData.getPurchasePrice()
             : fallbackPurchasePrice;
     if (value == null || value <= 0) {
-      throw new IllegalArgumentException(
-          "El precio de compra del vehículo debe ser mayor a cero.");
+      throw new IllegalArgumentException("El precio de compra del vehículo debe ser mayor a cero.");
     }
     return value;
   }
@@ -337,8 +419,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
       return 0d;
     }
     if (salePrice < 0) {
-      throw new IllegalArgumentException(
-          "El precio de venta del vehículo no puede ser negativo.");
+      throw new IllegalArgumentException("El precio de venta del vehículo no puede ser negativo.");
     }
     return salePrice;
   }
@@ -352,13 +433,20 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     purchaseSale.setContractType(purchaseSaleRequest.getContractType());
     purchaseSale.setContractStatus(purchaseSaleRequest.getContractStatus());
     if (purchaseSaleRequest.getContractType() == ContractType.PURCHASE) {
-      purchaseSale.setSalePrice(
-          Optional.ofNullable(purchaseSaleRequest.getSalePrice()).orElse(0d));
+      purchaseSale.setSalePrice(Optional.ofNullable(purchaseSaleRequest.getSalePrice()).orElse(0d));
     } else {
       purchaseSale.setSalePrice(purchaseSaleRequest.getSalePrice());
     }
   }
 
+  /**
+   * Busca el precio de compra más reciente de un vehículo dentro de contratos válidos (activos o
+   * completados). Si no existe, intenta usar el valor enviado como fallback.
+   *
+   * @param contractsByVehicle contratos asociados al vehículo
+   * @param fallbackPurchasePrice precio alternativo si no hay compras previas
+   * @return precio de compra válido
+   */
   private Double findLatestPurchasePrice(
       List<PurchaseSale> contractsByVehicle, Double fallbackPurchasePrice) {
     return contractsByVehicle.stream()
@@ -381,6 +469,14 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
             });
   }
 
+  /**
+   * Verifica que el vehículo no tenga otra compra pendiente o activa asociada, evitando duplicidad
+   * de compras sobre el mismo vehículo.
+   *
+   * @param contractsByVehicle contratos existentes del vehículo
+   * @param excludedContractId contrato a ignorar (en actualizaciones)
+   * @param vehicleId ID del vehículo
+   */
   private void ensureNoActivePurchase(
       List<PurchaseSale> contractsByVehicle, Long excludedContractId, Long vehicleId) {
     boolean hasActiveOrPendingPurchase =
@@ -402,6 +498,16 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
+  /**
+   * Valida que el vehículo cumpla los requisitos para registrar una venta, incluyendo: - Existencia
+   * de una compra activa/completada previa. - Ausencia de ventas en estado pendiente, activa o
+   * completada.
+   *
+   * @param contractsByVehicle contratos existentes del vehículo
+   * @param excludedContractId contrato a ignorar (en actualizaciones)
+   * @param vehicleId ID del vehículo
+   * @param targetStatus estado solicitado del contrato de venta
+   */
   private void ensureSalePrerequisites(
       List<PurchaseSale> contractsByVehicle,
       Long excludedContractId,
@@ -436,7 +542,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
                         && contract.getContractType() == ContractType.SALE)
             .anyMatch(
                 contract ->
-                    EnumSet.of(ContractStatus.PENDING, ContractStatus.ACTIVE, ContractStatus.COMPLETED)
+                    EnumSet.of(
+                            ContractStatus.PENDING, ContractStatus.ACTIVE, ContractStatus.COMPLETED)
                         .contains(contract.getContractStatus()));
 
     if (hasConflictingSale) {

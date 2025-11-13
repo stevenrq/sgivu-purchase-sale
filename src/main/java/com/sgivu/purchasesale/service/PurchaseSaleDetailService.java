@@ -21,6 +21,14 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 
+/**
+ * Servicio encargado de construir respuestas detalladas de compra-venta, enriqueciendo la
+ * información del contrato con datos resumidos del cliente, usuario y vehículo asociados.
+ *
+ * <p>Este servicio consulta microservicios externos para obtener la información relacionada y
+ * utiliza caché interna para evitar llamadas redundantes durante el procesamiento de múltiples
+ * contratos.
+ */
 @Service
 public class PurchaseSaleDetailService {
 

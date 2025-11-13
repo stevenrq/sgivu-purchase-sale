@@ -9,15 +9,15 @@ import com.lowagie.text.Rectangle;
 import com.lowagie.text.pdf.PdfPCell;
 import com.lowagie.text.pdf.PdfPTable;
 import com.lowagie.text.pdf.PdfWriter;
+import com.sgivu.purchasesale.dto.ClientSummary;
+import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
+import com.sgivu.purchasesale.dto.UserSummary;
+import com.sgivu.purchasesale.dto.VehicleSummary;
 import com.sgivu.purchasesale.entity.PurchaseSale;
 import com.sgivu.purchasesale.enums.ContractStatus;
 import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
-import com.sgivu.purchasesale.dto.ClientSummary;
-import com.sgivu.purchasesale.dto.PurchaseSaleDetailResponse;
-import com.sgivu.purchasesale.dto.UserSummary;
-import com.sgivu.purchasesale.dto.VehicleSummary;
 import java.io.ByteArrayOutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
@@ -29,8 +29,8 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.Arrays;
 import java.util.EnumMap;
-import java.util.Locale;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.stream.Collectors;
 import org.apache.poi.ss.usermodel.Cell;
@@ -47,11 +47,13 @@ import org.springframework.stereotype.Service;
 @Service
 public class PurchaseSaleReportService {
 
+  private static final String LABEL_TIPO = "Tipo: ";
+
   private static final DateTimeFormatter DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
   private static final ZoneId SOURCE_ZONE = ZoneId.of("UTC");
   private static final ZoneId TARGET_ZONE = ZoneId.of("America/Bogota");
-  private static final Locale REPORT_LOCALE = new Locale("es", "CO");
+  private static final Locale REPORT_LOCALE = Locale.of("es", "CO");
   private static final String[] DATASET_HEADERS = {
     "Tipo de contrato",
     "Estado del contrato",
@@ -82,8 +84,7 @@ public class PurchaseSaleReportService {
   private final PurchaseSaleDetailService purchaseSaleDetailService;
   private final Map<ContractStatus, String> statusLabels = new EnumMap<>(ContractStatus.class);
   private final Map<ContractType, String> typeLabels = new EnumMap<>(ContractType.class);
-  private final Map<PaymentMethod, String> paymentMethodLabels =
-      new EnumMap<>(PaymentMethod.class);
+  private final Map<PaymentMethod, String> paymentMethodLabels = new EnumMap<>(PaymentMethod.class);
 
   public PurchaseSaleReportService(
       PurchaseSaleRepository purchaseSaleRepository,
@@ -107,7 +108,8 @@ public class PurchaseSaleReportService {
 
       Paragraph title =
           new Paragraph(
-              "Reporte de compras y ventas de vehículos", FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16));
+              "Reporte de compras y ventas de vehículos",
+              FontFactory.getFont(FontFactory.HELVETICA_BOLD, 16));
       title.setAlignment(Element.ALIGN_CENTER);
       title.setSpacingAfter(10f);
       document.add(title);
@@ -131,8 +133,8 @@ public class PurchaseSaleReportService {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
     List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
 
-    try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream =
-        new ByteArrayOutputStream()) {
+    try (Workbook workbook = new XSSFWorkbook();
+        ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
       Sheet sheet = workbook.createSheet("Compras y ventas");
 
       Font headerFont = workbook.createFont();
@@ -165,17 +167,29 @@ public class PurchaseSaleReportService {
         setCellValue(row, column++, getContractTypeLabel(contract.getContractType()));
         setCellValue(row, column++, getStatusLabel(contract.getContractStatus()));
         setCellValue(row, column++, getClientName(contract.getClientSummary()));
-        setCellValue(row, column++, getClientTypeLabel(contract.getClientSummary() == null ? null : contract.getClientSummary().getType()));
+        setCellValue(
+            row,
+            column++,
+            getClientTypeLabel(
+                contract.getClientSummary() == null
+                    ? null
+                    : contract.getClientSummary().getType()));
         setCellValue(row, column++, getClientIdentifier(contract.getClientSummary()));
         setCellValue(row, column++, getClientEmail(contract.getClientSummary()));
         setCellValue(row, column++, getClientPhone(contract.getClientSummary()));
-        setCellValue(row, column++, getUserName(contract.getUserSummary()));
+        setCellValue(row, column++, getUserFullName(contract.getUserSummary()));
         setCellValue(row, column++, getUsername(contract.getUserSummary()));
         setCellValue(row, column++, getUserEmail(contract.getUserSummary()));
         setCellValue(row, column++, getVehicleBrand(contract.getVehicleSummary()));
         setCellValue(row, column++, getVehicleModel(contract.getVehicleSummary()));
         setCellValue(row, column++, getVehiclePlate(contract.getVehicleSummary()));
-        setCellValue(row, column++, getVehicleTypeLabel(contract.getVehicleSummary() == null ? null : contract.getVehicleSummary().getType()));
+        setCellValue(
+            row,
+            column++,
+            getVehicleTypeLabel(
+                contract.getVehicleSummary() == null
+                    ? null
+                    : contract.getVehicleSummary().getType()));
         setCellValue(row, column++, getVehicleStatus(contract.getVehicleSummary()));
         setNumericCellValue(row, column++, contract.getPurchasePrice());
         setNumericCellValue(row, column++, contract.getSalePrice());
@@ -226,11 +240,10 @@ public class PurchaseSaleReportService {
   private List<PurchaseSale> findContracts(LocalDate startDate, LocalDate endDate) {
     return purchaseSaleRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
         .filter(contract -> filterByDateRange(contract.getCreatedAt(), startDate, endDate))
-        .collect(Collectors.toList());
+        .toList();
   }
 
-  private boolean filterByDateRange(
-      LocalDateTime value, LocalDate startDate, LocalDate endDate) {
+  private boolean filterByDateRange(LocalDateTime value, LocalDate startDate, LocalDate endDate) {
     if (value == null) {
       return false;
     }
@@ -246,12 +259,7 @@ public class PurchaseSaleReportService {
     table.setWidthPercentage(100);
 
     String[] headers = {
-      "Contrato",
-      "Cliente",
-      "Usuario responsable",
-      "Vehículo",
-      "Condiciones financieras",
-      "Fechas"
+      "Contrato", "Cliente", "Usuario responsable", "Vehículo", "Condiciones financieras", "Fechas"
     };
 
     for (String header : headers) {
@@ -289,7 +297,8 @@ public class PurchaseSaleReportService {
   }
 
   private void addCell(PdfPTable table, String value) {
-    Paragraph paragraph = new Paragraph(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 9));
+    Paragraph paragraph =
+        new Paragraph(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 9));
     paragraph.setMultipliedLeading(1.3f);
     paragraph.setSpacingBefore(2f);
     paragraph.setSpacingAfter(4f);
@@ -309,7 +318,10 @@ public class PurchaseSaleReportService {
       return "";
     }
 
-    return dateTime.atZone(SOURCE_ZONE).withZoneSameInstant(TARGET_ZONE).format(DATE_TIME_FORMATTER);
+    return dateTime
+        .atZone(SOURCE_ZONE)
+        .withZoneSameInstant(TARGET_ZONE)
+        .format(DATE_TIME_FORMATTER);
   }
 
   private String buildPeriodText(LocalDate startDate, LocalDate endDate) {
@@ -323,19 +335,17 @@ public class PurchaseSaleReportService {
   }
 
   private String formatContractBlock(PurchaseSaleDetailResponse contract) {
-    return new StringBuilder()
-        .append("Tipo: ")
-        .append(getContractTypeLabel(contract.getContractType()))
-        .append('\n')
-        .append("Estado: ")
-        .append(getStatusLabel(contract.getContractStatus()))
-        .append('\n')
-        .append("Método de pago: ")
-        .append(getPaymentMethodLabel(contract.getPaymentMethod()))
-        .append('\n')
-        .append("Observaciones: ")
-        .append(safeText(contract.getObservations(), "Sin observaciones"))
-        .toString();
+    return LABEL_TIPO
+        + getContractTypeLabel(contract.getContractType())
+        + '\n'
+        + "Estado: "
+        + getStatusLabel(contract.getContractStatus())
+        + '\n'
+        + "Método de pago: "
+        + getPaymentMethodLabel(contract.getPaymentMethod())
+        + '\n'
+        + "Observaciones: "
+        + safeText(contract.getObservations(), "Sin observaciones");
   }
 
   private String formatClientBlock(ClientSummary clientSummary) {
@@ -343,22 +353,20 @@ public class PurchaseSaleReportService {
       return "Nombre: N/D";
     }
 
-    return new StringBuilder()
-        .append("Nombre: ")
-        .append(safeText(clientSummary.getName(), "No registrado"))
-        .append('\n')
-        .append("Tipo: ")
-        .append(safeText(getClientTypeLabel(clientSummary.getType()), "N/D"))
-        .append('\n')
-        .append("Documento: ")
-        .append(safeText(clientSummary.getIdentifier(), "N/D"))
-        .append('\n')
-        .append("Email: ")
-        .append(safeText(clientSummary.getEmail(), "N/D"))
-        .append('\n')
-        .append("Teléfono: ")
-        .append(formatPhoneNumber(clientSummary.getPhoneNumber()))
-        .toString();
+    return "Nombre: "
+        + safeText(clientSummary.getName(), "No registrado")
+        + '\n'
+        + LABEL_TIPO
+        + safeText(getClientTypeLabel(clientSummary.getType()), "N/D")
+        + '\n'
+        + "Documento: "
+        + safeText(clientSummary.getIdentifier(), "N/D")
+        + '\n'
+        + "Email: "
+        + safeText(clientSummary.getEmail(), "N/D")
+        + '\n'
+        + "Teléfono: "
+        + formatPhoneNumber(clientSummary.getPhoneNumber());
   }
 
   private String formatUserBlock(UserSummary userSummary) {
@@ -366,16 +374,14 @@ public class PurchaseSaleReportService {
       return "Gestor: N/D";
     }
 
-    return new StringBuilder()
-        .append("Gestor: ")
-        .append(safeText(userSummary.getFullName(), "Sin asignar"))
-        .append('\n')
-        .append("Usuario: @")
-        .append(safeText(userSummary.getUsername(), "N/D"))
-        .append('\n')
-        .append("Email: ")
-        .append(safeText(userSummary.getEmail(), "N/D"))
-        .toString();
+    return "Gestor: "
+        + safeText(userSummary.getFullName(), "Sin asignar")
+        + '\n'
+        + "Usuario: @"
+        + safeText(userSummary.getUsername(), "N/D")
+        + '\n'
+        + "Email: "
+        + safeText(userSummary.getEmail(), "N/D");
   }
 
   private String formatVehicleBlock(VehicleSummary vehicleSummary) {
@@ -383,48 +389,41 @@ public class PurchaseSaleReportService {
       return "Vehículo: N/D";
     }
 
-    return new StringBuilder()
-        .append("Tipo: ")
-        .append(safeText(getVehicleTypeLabel(vehicleSummary.getType()), "N/D"))
-        .append('\n')
-        .append("Modelo: ")
-        .append(
-            safeText(vehicleSummary.getBrand(), "Marca")
-                + " "
-                + safeText(vehicleSummary.getModel(), "Modelo"))
-        .append('\n')
-        .append("Placa: ")
-        .append(safeText(vehicleSummary.getPlate(), "N/D"))
-        .append('\n')
-        .append("Estado: ")
-        .append(safeText(vehicleSummary.getStatus(), "N/D"))
-        .toString();
+    return LABEL_TIPO
+        + safeText(getVehicleTypeLabel(vehicleSummary.getType()), "N/D")
+        + '\n'
+        + "Modelo: "
+        + safeText(vehicleSummary.getBrand(), "Marca")
+        + " "
+        + safeText(vehicleSummary.getModel(), "Modelo")
+        + '\n'
+        + "Placa: "
+        + safeText(vehicleSummary.getPlate(), "N/D")
+        + '\n'
+        + "Estado: "
+        + safeText(vehicleSummary.getStatus(), "N/D");
   }
 
   private String formatFinanceBlock(PurchaseSaleDetailResponse contract) {
-    return new StringBuilder()
-        .append("Precio compra: ")
-        .append(formatCurrency(contract.getPurchasePrice()))
-        .append('\n')
-        .append("Precio venta: ")
-        .append(formatCurrency(contract.getSalePrice()))
-        .append('\n')
-        .append("Términos: ")
-        .append(safeText(contract.getPaymentTerms(), "No especificados"))
-        .append('\n')
-        .append("Limitaciones: ")
-        .append(safeText(contract.getPaymentLimitations(), "Sin restricciones"))
-        .toString();
+    return "Precio compra: "
+        + formatCurrency(contract.getPurchasePrice())
+        + '\n'
+        + "Precio venta: "
+        + formatCurrency(contract.getSalePrice())
+        + '\n'
+        + "Términos: "
+        + safeText(contract.getPaymentTerms(), "No especificados")
+        + '\n'
+        + "Limitaciones: "
+        + safeText(contract.getPaymentLimitations(), "Sin restricciones");
   }
 
   private String formatTimelineBlock(PurchaseSaleDetailResponse contract) {
-    return new StringBuilder()
-        .append("Creado: ")
-        .append(formatDate(contract.getCreatedAt()))
-        .append('\n')
-        .append("Actualizado: ")
-        .append(formatDate(contract.getUpdatedAt()))
-        .toString();
+    return "Creado: "
+        + formatDate(contract.getCreatedAt())
+        + '\n'
+        + "Actualizado: "
+        + formatDate(contract.getUpdatedAt());
   }
 
   private String formatCurrency(Double value) {
@@ -492,7 +491,7 @@ public class PurchaseSaleReportService {
         : String.valueOf(summary.getPhoneNumber());
   }
 
-  private String getUserName(UserSummary summary) {
+  private String getUserFullName(UserSummary summary) {
     return summary == null ? "" : safeText(summary.getFullName(), "");
   }
 
@@ -577,8 +576,7 @@ public class PurchaseSaleReportService {
   }
 
   private void writeCsvRow(PrintWriter writer, String... values) {
-    String row =
-        Arrays.stream(values).map(this::escapeCsvValue).collect(Collectors.joining(","));
+    String row = Arrays.stream(values).map(this::escapeCsvValue).collect(Collectors.joining(","));
     writer.println(row);
   }
 
@@ -594,7 +592,7 @@ public class PurchaseSaleReportService {
       getClientIdentifier(client),
       getClientEmail(client),
       getClientPhone(client),
-      getUserName(user),
+      getUserFullName(user),
       getUsername(user),
       getUserEmail(user),
       getVehicleBrand(vehicle),

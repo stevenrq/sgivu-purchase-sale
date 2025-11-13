@@ -6,6 +6,7 @@ import org.springframework.http.HttpRequest;
 import org.springframework.http.client.ClientHttpRequestExecution;
 import org.springframework.http.client.ClientHttpRequestInterceptor;
 import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.lang.NonNull;
 import org.springframework.lang.Nullable;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -20,8 +21,12 @@ import org.springframework.stereotype.Component;
 public class JwtAuthorizationInterceptor implements ClientHttpRequestInterceptor {
 
   @Override
+  @NonNull
   public ClientHttpResponse intercept(
-      HttpRequest request, byte[] body, ClientHttpRequestExecution execution) throws IOException {
+      @NonNull HttpRequest request,
+      @NonNull byte[] body,
+      @NonNull ClientHttpRequestExecution execution)
+      throws IOException {
     Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
     String tokenValue = extractTokenValue(authentication);
 
@@ -43,4 +48,3 @@ public class JwtAuthorizationInterceptor implements ClientHttpRequestInterceptor
     return null;
   }
 }
-
