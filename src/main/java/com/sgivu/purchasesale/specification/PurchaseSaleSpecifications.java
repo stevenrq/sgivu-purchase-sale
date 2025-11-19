@@ -64,18 +64,28 @@ public final class PurchaseSaleSpecifications {
       String term,
       jakarta.persistence.criteria.Root<PurchaseSale> root,
       CriteriaBuilder cb) {
-    String normalized = "%" + term.trim().toLowerCase() + "%";
+    String normalizedTerm = term.trim().toLowerCase();
+    String likePattern = "%" + normalizedTerm + "%";
     List<Predicate> orPredicates = new ArrayList<>();
-    orPredicates.add(cb.like(cb.lower(root.get("paymentTerms")), normalized));
-    orPredicates.add(cb.like(cb.lower(root.get("paymentLimitations")), normalized));
-    orPredicates.add(cb.like(cb.lower(root.get("observations")), normalized));
+    orPredicates.add(cb.like(cb.lower(root.get("paymentTerms")), likePattern));
+    orPredicates.add(cb.like(cb.lower(root.get("paymentLimitations")), likePattern));
+    orPredicates.add(cb.like(cb.lower(root.get("observations")), likePattern));
+    orPredicates.add(cb.like(cb.lower(root.get("contractStatus").as(String.class)), likePattern));
+    orPredicates.add(cb.like(cb.lower(root.get("contractType").as(String.class)), likePattern));
+    orPredicates.add(cb.like(cb.lower(root.get("paymentMethod").as(String.class)), likePattern));
 
-    Long numericTerm = parseLong(term);
+    Long numericTerm = parseLongLoose(term);
     if (numericTerm != null) {
       orPredicates.add(cb.equal(root.get("id"), numericTerm));
       orPredicates.add(cb.equal(root.get("clientId"), numericTerm));
       orPredicates.add(cb.equal(root.get("userId"), numericTerm));
       orPredicates.add(cb.equal(root.get("vehicleId"), numericTerm));
+    }
+
+    Double priceMatch = parseDouble(term);
+    if (priceMatch != null) {
+      orPredicates.add(cb.equal(root.get("purchasePrice"), priceMatch));
+      orPredicates.add(cb.equal(root.get("salePrice"), priceMatch));
     }
 
     return cb.or(orPredicates.toArray(new Predicate[0]));
@@ -116,9 +126,27 @@ public final class PurchaseSaleSpecifications {
     }
   }
 
-  private static Long parseLong(String value) {
+  private static Long parseLongLoose(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    String digitsOnly = value.replaceAll("\\D+", "");
+    if (!StringUtils.hasText(digitsOnly)) {
+      return null;
+    }
     try {
-      return Long.parseLong(value.trim());
+      return Long.parseLong(digitsOnly);
+    } catch (NumberFormatException ex) {
+      return null;
+    }
+  }
+
+  private static Double parseDouble(String value) {
+    if (!StringUtils.hasText(value)) {
+      return null;
+    }
+    try {
+      return Double.parseDouble(value.replace(",", ".").trim());
     } catch (NumberFormatException ex) {
       return null;
     }
