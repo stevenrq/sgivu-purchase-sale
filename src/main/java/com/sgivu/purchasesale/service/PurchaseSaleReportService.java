@@ -44,6 +44,11 @@ import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+/**
+ * Orquesta la generación de reportes (PDF, Excel y CSV) para el módulo de compras/ventas. Reutiliza
+ * la capa de detalles para enriquecer la información mostrada y aplica formateos regionales,
+ * etiquetas y bloques narrativos listos para ser enviados a clientes externos.
+ */
 @Service
 public class PurchaseSaleReportService {
 
@@ -94,6 +99,14 @@ public class PurchaseSaleReportService {
     initialiseLabels();
   }
 
+  /**
+   * Genera un PDF con la lista de contratos dentro del rango indicado, aplicando cabeceras y
+   * tablas listas para impresión.
+   *
+   * @param startDate fecha mínima (opcional)
+   * @param endDate fecha máxima (opcional)
+   * @return bytes del documento PDF
+   */
   public byte[] generatePdf(LocalDate startDate, LocalDate endDate) {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
     List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
@@ -129,6 +142,14 @@ public class PurchaseSaleReportService {
     }
   }
 
+  /**
+   * Produce una hoja de cálculo con todo el dataset, utilizando encabezados localizados y ajuste de
+   * columnas.
+   *
+   * @param startDate fecha mínima (opcional)
+   * @param endDate fecha máxima (opcional)
+   * @return bytes del archivo XLSX
+   */
   public byte[] generateExcel(LocalDate startDate, LocalDate endDate) {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
     List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
@@ -210,6 +231,14 @@ public class PurchaseSaleReportService {
     }
   }
 
+  /**
+   * Exporta el dataset a CSV con codificación UTF-8 y encabezados autoexplicativos; ideal para
+   * integraciones sencillas o procesamiento en otros sistemas.
+   *
+   * @param startDate fecha mínima (opcional)
+   * @param endDate fecha máxima (opcional)
+   * @return bytes del archivo CSV
+   */
   public byte[] generateCsv(LocalDate startDate, LocalDate endDate) {
     List<PurchaseSale> contracts = findContracts(startDate, endDate);
     List<PurchaseSaleDetailResponse> details = purchaseSaleDetailService.toDetails(contracts);
@@ -237,6 +266,14 @@ public class PurchaseSaleReportService {
     }
   }
 
+  /**
+   * Recupera contratos ordenados por fecha y aplica, en memoria, el filtro opcional por rango de
+   * fechas cuando ambos valores son provistos.
+   *
+   * @param startDate fecha mínima permitida
+   * @param endDate fecha máxima permitida
+   * @return lista de contratos que cumplen el rango solicitado
+   */
   private List<PurchaseSale> findContracts(LocalDate startDate, LocalDate endDate) {
     return purchaseSaleRepository.findAll(Sort.by(Sort.Direction.DESC, "createdAt")).stream()
         .filter(contract -> filterByDateRange(contract.getCreatedAt(), startDate, endDate))
@@ -324,6 +361,13 @@ public class PurchaseSaleReportService {
         .format(DATE_TIME_FORMATTER);
   }
 
+  /**
+   * Construye la leyenda que describe el rango del reporte (ambos extremos o “completo”).
+   *
+   * @param startDate fecha mínima
+   * @param endDate fecha máxima
+   * @return texto descriptivo del periodo
+   */
   private String buildPeriodText(LocalDate startDate, LocalDate endDate) {
     if (startDate == null && endDate == null) {
       return "Periodo: todos los registros disponibles";

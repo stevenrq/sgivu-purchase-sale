@@ -8,6 +8,10 @@ import org.springframework.web.service.annotation.GetExchange;
 import org.springframework.web.service.annotation.HttpExchange;
 import org.springframework.web.service.annotation.PostExchange;
 
+/**
+ * Cliente declarativo del microservicio de vehículos. Se reutiliza tanto para consultar
+ * vehículos existentes (durante ventas) como para registrar nuevos (durante compras).
+ */
 @HttpExchange("/v1")
 public interface VehicleServiceClient {
 

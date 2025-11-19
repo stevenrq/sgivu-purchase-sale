@@ -20,6 +20,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class JwtAuthorizationInterceptor implements ClientHttpRequestInterceptor {
 
+  /**
+   * Copia el token JWT autenticado en la cabecera Authorization de la petición saliente si aún no
+   * existe.
+   *
+   * @param request petición HTTP en curso
+   * @param body cuerpo serializado
+   * @param execution cadena de ejecución del interceptor
+   * @return respuesta del servicio remoto
+   * @throws IOException error de I/O durante la invocación
+   */
   @Override
   @NonNull
   public ClientHttpResponse intercept(
@@ -40,6 +50,12 @@ public class JwtAuthorizationInterceptor implements ClientHttpRequestInterceptor
     return execution.execute(request, body);
   }
 
+  /**
+   * Obtiene el valor del token JWT desde el contexto de Spring Security (si existe).
+   *
+   * @param authentication objeto de autenticación actual
+   * @return token en formato string o {@code null} si no aplica
+   */
   @Nullable
   private String extractTokenValue(@Nullable Authentication authentication) {
     if (authentication instanceof JwtAuthenticationToken jwtAuthenticationToken) {

@@ -29,6 +29,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.HttpClientErrorException;
 
+/**
+ * Servicio que aplica las reglas de negocio del dominio de compras/ventas: valida inventario,
+ * coordina dependencias con otros microservicios y evita transiciones inconsistentes entre compra y
+ * venta de un mismo vehículo.
+ */
 @Service
 @Transactional(readOnly = true)
 public class PurchaseSaleServiceImpl implements PurchaseSaleService {
@@ -53,12 +58,9 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Crea un nuevo contrato de compra o venta aplicando todas las reglas de negocio. Normaliza el
-   * tipo de contrato, resuelve IDs en servicios externos, registra el vehículo si corresponde,
-   * valida precios y garantiza que no existan contratos conflictivos sobre el mismo vehículo.
-   *
-   * @param purchaseSaleRequest datos del contrato a registrar
-   * @return contrato creado y persistido
+   * Registra un contrato garantizando que los actores existan, el stock esté disponible y no haya
+   * otra operación incompatible sobre el mismo vehículo. También fija precios coherentes con los
+   * reportes contables.
    */
   @Transactional
   @Override
@@ -104,13 +106,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Actualiza un contrato existente manteniendo el tipo original (no modificable), aplicando
-   * nuevamente reglas de negocio, validando precios y resolviendo IDs en servicios externos. Evita
-   * inconsistencias respecto a otros contratos asociados al mismo vehículo.
-   *
-   * @param id ID del contrato a actualizar
-   * @param purchaseSaleRequest datos actualizados del contrato
-   * @return contrato actualizado si existe
+   * Permite corregir un contrato sin alterar su naturaleza (una compra no puede volverse venta).
+   * Revalida el inventario y actualiza dependencias externas antes de persistir cambios.
    */
   @Transactional
   @Override
@@ -172,11 +169,9 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Normaliza el tipo de contrato asignando un valor por defecto (PURCHASE) si no se especifica y
-   * configura el estado inicial si está ausente.
-   *
-   * @param purchaseSaleRequest request del contrato
-   * @return tipo de contrato resultante
+   * Asegura que todos los contratos tengan valores deterministas cuando el cliente no los envía:
+   * por defecto tratamos la operación como compra y forzamos el estado PENDING para mantener el
+   * mismo flujo de aprobaciones.
    */
   private ContractType normalizeContractType(PurchaseSaleRequest purchaseSaleRequest) {
     ContractType contractType =
@@ -189,13 +184,9 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Determina cómo obtener el vehículo asociado al contrato dependiendo del tipo: - Para compras:
-   * crea el vehículo si no se envía un ID. - Para ventas: exige un ID válido y prohíbe el envío de
-   * datos detallados.
-   *
-   * @param contractType tipo de contrato
-   * @param purchaseSaleRequest request con ID o datos del vehículo
-   * @return ID del vehículo asociado
+   * Resuelve el vehículo según el tipo de operación: las compras permiten registrar el activo en el
+   * microservicio de vehículos, mientras que las ventas solo aceptan referencias existentes para no
+   * duplicar inventario.
    */
   private Long resolveVehicleReference(
       ContractType contractType, PurchaseSaleRequest purchaseSaleRequest) {
@@ -222,11 +213,9 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Registra un nuevo vehículo en el servicio externo según el tipo especificado (carro o
-   * motocicleta). Valida obligatoriamente todos los atributos necesarios.
-   *
-   * @param purchaseSaleRequest request que contiene los datos del vehículo
-   * @return ID del vehículo registrado
+   * Alta controlada de vehículos provenientes de contratos de compra. Valida que todos los campos
+   * requeridos existan antes de delegar en el microservicio de vehículos para evitar registros
+   * incompletos.
    */
   private Long registerVehicleForPurchase(PurchaseSaleRequest purchaseSaleRequest) {
     VehicleCreationRequest vehicleData = purchaseSaleRequest.getVehicleData();
@@ -263,13 +252,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Aplica y valida atributos comunes para cualquier tipo de vehículo al momento de registrarlo
-   * (marca, modelo, placa, motor, ciudad, chasis, año, transmisión, kilometraje, precios, etc.).
-   *
-   * @param target instancia del vehículo a completar
-   * @param vehicleData datos enviados por el cliente
-   * @param request request del contrato (para fallback de precios)
-   * @return vehículo con atributos comunes inicializados
+   * Copia atributos críticos de cualquier vehículo, asegurando consistencia (placa en mayúsculas,
+   * precios no negativos, metadatos de registro) antes de enviar la petición al servicio remoto.
    */
   private <T extends Vehicle> T applyCommonVehicleAttributes(
       T target, VehicleCreationRequest vehicleData, PurchaseSaleRequest request) {
@@ -307,18 +291,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Ejecuta todas las reglas de negocio relevantes según el tipo de contrato:
-   *
-   * <ul>
-   *   <li>Compras: asegura que no exista una compra activa o pendiente para el vehículo.
-   *   <li>Ventas: valida que exista una compra previa válida y que no haya otra venta activa.
-   * </ul>
-   *
-   * @param contractType tipo del contrato
-   * @param purchaseSaleRequest datos del contrato
-   * @param contractsByVehicle contratos previos del mismo vehículo
-   * @param excludedContractId ID a excluir (en caso de actualización)
-   * @param vehicleId ID del vehículo asociado
+   * Punto central de reglas: para compras evita duplicar adquisiciones pendientes; para ventas
+   * verifica que el vehículo tenga una compra consolidada y no esté comprometido en otra venta.
    */
   private void applyBusinessRules(
       ContractType contractType,
@@ -340,10 +314,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Prepara y valida los valores específicos para un contrato de compra, asignando un precio de
-   * venta objetivo si no se proporcionó explícitamente.
-   *
-   * @param purchaseSaleRequest request del contrato de compra
+   * En compras se permite omitir el precio de venta futuro; si no llega, se inicializa en cero para
+   * que los reportes no queden con valores nulos.
    */
   private void preparePurchaseRequest(PurchaseSaleRequest purchaseSaleRequest) {
     Double targetSalePrice = null;
@@ -357,11 +329,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Prepara y valida los datos de un contrato de venta, asegurando que el precio de venta sea
-   * válido y estableciendo el precio de compra desde compras previas.
-   *
-   * @param purchaseSaleRequest request del contrato de venta
-   * @param contractsByVehicle historial de contratos del vehículo
+   * Las ventas deben respetar el precio de compra registrado previamente y fijar un precio de
+   * venta positivo; de lo contrario impactaría los márgenes y la disponibilidad del inventario.
    */
   private void prepareSaleRequest(
       PurchaseSaleRequest purchaseSaleRequest, List<PurchaseSale> contractsByVehicle) {
@@ -440,12 +409,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Busca el precio de compra más reciente de un vehículo dentro de contratos válidos (activos o
-   * completados). Si no existe, intenta usar el valor enviado como fallback.
-   *
-   * @param contractsByVehicle contratos asociados al vehículo
-   * @param fallbackPurchasePrice precio alternativo si no hay compras previas
-   * @return precio de compra válido
+   * Obtiene el precio de compra vigente para liquidar una venta. Solo considera compras activas o
+   * completadas y cae en el valor enviado si no existe historial.
    */
   private Double findLatestPurchasePrice(
       List<PurchaseSale> contractsByVehicle, Double fallbackPurchasePrice) {
@@ -470,12 +435,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Verifica que el vehículo no tenga otra compra pendiente o activa asociada, evitando duplicidad
-   * de compras sobre el mismo vehículo.
-   *
-   * @param contractsByVehicle contratos existentes del vehículo
-   * @param excludedContractId contrato a ignorar (en actualizaciones)
-   * @param vehicleId ID del vehículo
+   * Regla para compras: un vehículo no puede tener más de una adquisición pendiente/activa, lo que
+   * evita duplicar capital inmovilizado en inventario.
    */
   private void ensureNoActivePurchase(
       List<PurchaseSale> contractsByVehicle, Long excludedContractId, Long vehicleId) {
@@ -499,14 +460,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Valida que el vehículo cumpla los requisitos para registrar una venta, incluyendo: - Existencia
-   * de una compra activa/completada previa. - Ausencia de ventas en estado pendiente, activa o
-   * completada.
-   *
-   * @param contractsByVehicle contratos existentes del vehículo
-   * @param excludedContractId contrato a ignorar (en actualizaciones)
-   * @param vehicleId ID del vehículo
-   * @param targetStatus estado solicitado del contrato de venta
+   * Regla para ventas: solo se permiten cuando hay stock adquirido y ninguna otra venta en curso o
+   * completada que comprometa el mismo vehículo.
    */
   private void ensureSalePrerequisites(
       List<PurchaseSale> contractsByVehicle,

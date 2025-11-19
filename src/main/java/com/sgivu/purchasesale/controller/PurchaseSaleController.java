@@ -35,6 +35,11 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+/**
+ * API REST para gestionar contratos de compra y venta. Expone operaciones CRUD, búsqueda paginada
+ * con múltiples filtros y exportación de reportes en diferentes formatos. También delega la
+ * construcción de respuestas detalladas que combinan información de usuarios, clientes y vehículos.
+ */
 @RestController
 @RequestMapping("/v1/purchase-sales")
 public class PurchaseSaleController {
@@ -110,6 +115,28 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(toDetailPage(pagedContracts));
   }
 
+  /**
+   * Realiza una búsqueda paginada aplicando filtros opcionales sobre tipo/estado de contrato,
+   * responsables, clientes, vehículo, rango de fechas y precios, así como un término libre que
+   * consulta múltiples campos. Devuelve las respuestas enriquecidas con detalles relacionados.
+   *
+   * @param page índice de página (0-based)
+   * @param size tamaño de página
+   * @param contractType filtro por tipo de contrato
+   * @param contractStatus filtro por estado
+   * @param clientId filtro por cliente
+   * @param userId filtro por usuario responsable
+   * @param vehicleId filtro por vehículo
+   * @param paymentMethod filtro por método de pago
+   * @param startDate fecha mínima de actualización
+   * @param endDate fecha máxima de actualización
+   * @param minPurchasePrice precio mínimo de compra
+   * @param maxPurchasePrice precio máximo de compra
+   * @param minSalePrice precio mínimo de venta
+   * @param maxSalePrice precio máximo de venta
+   * @param term término de búsqueda libre
+   * @return página de contratos detallados
+   */
   @GetMapping("/search")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<Page<PurchaseSaleDetailResponse>> searchContracts(
@@ -208,6 +235,14 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
+  /**
+   * Genera un reporte PDF opcionalmente limitado por fechas. Sirve para distribución ejecutiva,
+   * incluyendo totales y datos completos de cada contrato en el rango.
+   *
+   * @param startDate fecha mínima del reporte (opcional)
+   * @param endDate fecha máxima del reporte (opcional)
+   * @return archivo PDF listo para descarga
+   */
   @GetMapping(value = "/report/pdf", produces = MediaType.APPLICATION_PDF_VALUE)
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<byte[]> exportPdfReport(
@@ -222,6 +257,13 @@ public class PurchaseSaleController {
         .body(report);
   }
 
+  /**
+   * Genera el reporte en Excel, útil para análisis en hojas de cálculo.
+   *
+   * @param startDate fecha mínima del reporte (opcional)
+   * @param endDate fecha máxima del reporte (opcional)
+   * @return archivo XLSX listo para descarga
+   */
   @GetMapping(
       value = "/report/excel",
       produces = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
@@ -240,6 +282,13 @@ public class PurchaseSaleController {
         .body(report);
   }
 
+  /**
+   * Produce un CSV plano para integraciones externas o cargas masivas.
+   *
+   * @param startDate fecha mínima del reporte (opcional)
+   * @param endDate fecha máxima del reporte (opcional)
+   * @return archivo CSV con los datos solicitados
+   */
   @GetMapping(value = "/report/csv", produces = "text/csv")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<byte[]> exportCsvReport(
@@ -254,16 +303,34 @@ public class PurchaseSaleController {
         .body(report);
   }
 
+  /**
+   * Construye el encabezado `Content-Disposition` para los reportes descargables.
+   *
+   * @param extension extensión del archivo (pdf/xlsx/csv)
+   * @return encabezado listo para anexar en la respuesta HTTP
+   */
   private String buildContentDisposition(String extension) {
     String timestamp = LocalDate.now().format(DateTimeFormatter.ISO_DATE);
     return "attachment; filename=\"reporte-compras-ventas-" + timestamp + "." + extension + "\"";
   }
 
+  /**
+   * Convierte una página de entidades en una página de detalles enriquecidos.
+   *
+   * @param contracts página original de contratos
+   * @return página con DTOs detallados
+   */
   private Page<PurchaseSaleDetailResponse> toDetailPage(Page<PurchaseSale> contracts) {
     var detailed = purchaseSaleDetailService.toDetails(contracts.getContent());
     return new PageImpl<>(detailed, contracts.getPageable(), contracts.getTotalElements());
   }
 
+  /**
+   * Normaliza cadenas para evitar filtros con espacios o cadenas vacías.
+   *
+   * @param value texto recibido desde query params
+   * @return {@code null} si no contiene caracteres significativos; el texto recortado en caso contrario
+   */
   private String trimToNull(String value) {
     if (value == null) {
       return null;

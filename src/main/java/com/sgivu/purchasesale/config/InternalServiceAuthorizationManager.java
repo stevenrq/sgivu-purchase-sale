@@ -41,6 +41,13 @@ public class InternalServiceAuthorizationManager
     this.internalServiceKey = internalServiceKey;
   }
 
+  /**
+   * Evalúa si la solicitud contiene la cabecera con la clave interna esperada.
+   *
+   * @param authentication proveedor del contexto de autenticación actual (no se utiliza)
+   * @param context contexto que expone la petición HTTP
+   * @return decisión positiva únicamente cuando la clave coincide
+   */
   @Override
   public AuthorizationDecision check(
       Supplier<Authentication> authentication, RequestAuthorizationContext context) {
