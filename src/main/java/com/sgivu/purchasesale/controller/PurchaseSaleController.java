@@ -71,12 +71,10 @@ public class PurchaseSaleController {
 
   @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
-  public ResponseEntity<PurchaseSaleResponse> getById(@PathVariable Long id) {
+  public ResponseEntity<PurchaseSaleDetailResponse> getById(@PathVariable Long id) {
     return purchaseSaleService
         .findById(id)
-        .map(
-            purchaseSale ->
-                ResponseEntity.ok(purchaseSaleMapper.toPurchaseSaleResponse(purchaseSale)))
+        .map(contract -> ResponseEntity.ok(purchaseSaleDetailService.toDetail(contract)))
         .orElse(ResponseEntity.notFound().build());
   }
 
@@ -227,11 +225,10 @@ public class PurchaseSaleController {
 
   @GetMapping("/vehicle/{vehicleId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
-  public ResponseEntity<List<PurchaseSaleResponse>> getByVehicleId(@PathVariable Long vehicleId) {
-    List<PurchaseSaleResponse> responses =
-        purchaseSaleService.findByVehicleId(vehicleId).stream()
-            .map(purchaseSaleMapper::toPurchaseSaleResponse)
-            .toList();
+  public ResponseEntity<List<PurchaseSaleDetailResponse>> getByVehicleId(
+      @PathVariable Long vehicleId) {
+    List<PurchaseSaleDetailResponse> responses =
+        purchaseSaleDetailService.toDetails(purchaseSaleService.findByVehicleId(vehicleId));
     return ResponseEntity.ok(responses);
   }
 

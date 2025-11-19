@@ -85,6 +85,16 @@ public class PurchaseSaleDetailService {
   }
 
   /**
+   * Variante conveniente para construir un único detalle sin exponer la lista desde los controladores.
+   *
+   * @param contract contrato original
+   * @return respuesta enriquecida con resúmenes relacionados
+   */
+  public PurchaseSaleDetailResponse toDetail(PurchaseSale contract) {
+    return toDetails(List.of(contract)).stream().findFirst().orElse(null);
+  }
+
+  /**
    * Resuelve un cliente (persona o empresa) consultando el microservicio de clientes. Si no existe
    * retorna un placeholder con tipo UNKNOWN.
    *
