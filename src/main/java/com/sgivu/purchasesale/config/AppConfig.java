@@ -12,6 +12,11 @@ import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
 
+/**
+ * Configura los clientes HTTP declarativos que conectan con los microservicios SGIVU (clientes,
+ * usuarios e inventario de vehículos). Propaga el JWT actual y la clave interna para autorizar
+ * llamadas de servicio a servicio respetando la política de seguridad de la plataforma.
+ */
 @Configuration
 public class AppConfig {
 
@@ -24,12 +29,21 @@ public class AppConfig {
     this.servicesProperties = servicesProperties;
   }
 
+  /**
+   * Builder común para RestClient con load balancer y propagación de JWT. Permite que las llamadas
+   * salientes honren la identidad del usuario autenticado y pasen por el Discovery Client de Spring
+   * Cloud.
+   */
   @Bean
   @LoadBalanced
   RestClient.Builder restClientBuilder(JwtAuthorizationInterceptor jwtAuthorizationInterceptor) {
     return RestClient.builder().requestInterceptor(jwtAuthorizationInterceptor);
   }
 
+  /**
+   * Proxy hacia el microservicio de clientes. Incluye la cabecera interna para autorizarse como
+   * servicio confiable.
+   */
   @Bean
   ClientServiceClient clientServiceClient(RestClient.Builder restClientBuilder) {
     RestClient restClient =
@@ -44,6 +58,7 @@ public class AppConfig {
     return factory.createClient(ClientServiceClient.class);
   }
 
+  /** Proxy hacia el microservicio de usuarios (gestores internos). */
   @Bean
   UserServiceClient userServiceClient(RestClient.Builder restClientBuilder) {
     RestClient restClient =
@@ -58,6 +73,7 @@ public class AppConfig {
     return factory.createClient(UserServiceClient.class);
   }
 
+  /** Proxy hacia el microservicio de inventario de vehículos usados. */
   @Bean
   VehicleServiceClient vehicleServiceClient(RestClient.Builder restClientBuilder) {
     RestClient restClient =

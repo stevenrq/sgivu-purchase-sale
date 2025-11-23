@@ -23,6 +23,11 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
+/**
+ * Configura el microservicio como recurso protegido por JWT emitidos por el Authorization Server de
+ * SGIVU. Combina autorización por roles/permisos con un canal dedicado para llamadas internas
+ * autenticadas mediante clave compartida.
+ */
 @Configuration
 @EnableWebSecurity
 @EnableMethodSecurity
@@ -38,6 +43,11 @@ public class SecurityConfig {
     this.servicesProperties = servicesProperties;
   }
 
+  /**
+   * Define las reglas de seguridad HTTP: expone health/info sin autenticación, protege el resto con
+   * JWT y habilita acceso combinado para clientes externos autenticados o servicios internos
+   * firmados con cabecera {@code X-Internal-Service-Key}.
+   */
   @Bean
   SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
     http.oauth2ResourceServer(

@@ -15,15 +15,25 @@ import org.springframework.web.service.annotation.PostExchange;
 @HttpExchange("/v1")
 public interface VehicleServiceClient {
 
+  /**
+   * Recupera un automóvil previamente registrado, utilizado para validar disponibilidad en
+   * contratos de venta.
+   */
   @GetExchange("/cars/{id}")
   Car getCarById(@PathVariable Long id);
 
+  /** Recupera una motocicleta previamente registrada. */
   @GetExchange("/motorcycles/{id}")
   Motorcycle getMotorcycleById(@PathVariable Long id);
 
+  /**
+   * Registra un automóvil adquirido; la creación se dispara solo en contratos de compra para no
+   * duplicar inventario.
+   */
   @PostExchange("/cars")
   Car createCar(@RequestBody Car car);
 
+  /** Registra una motocicleta adquirida. */
   @PostExchange("/motorcycles")
   Motorcycle createMotorcycle(@RequestBody Motorcycle motorcycle);
 }

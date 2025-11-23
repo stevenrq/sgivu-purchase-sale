@@ -9,6 +9,10 @@ import lombok.NoArgsConstructor;
 
 @Data
 @NoArgsConstructor
+/**
+ * Respuesta estándar de contratos orientada a listados y reportes básicos. Incluye ids de entidades
+ * externas para permitir enriquecimiento posterior sin acoplarse al modelo JPA.
+ */
 public class PurchaseSaleResponse {
   private Long id;
   private Long clientId;

@@ -9,6 +9,11 @@ import lombok.Getter;
 
 @Getter
 @Builder
+/**
+ * Filtros combinados para búsquedas de contratos. Se utiliza en la capa de especificaciones para
+ * construir predicados dinámicos (estado, tipo, rangos de fecha/precio y término libre) sin
+ * exponer lógica de queries en el controlador.
+ */
 public class PurchaseSaleFilterCriteria {
   private final Long clientId;
   private final Long userId;

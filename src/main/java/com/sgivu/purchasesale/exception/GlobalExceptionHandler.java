@@ -14,6 +14,11 @@ import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.client.HttpClientErrorException;
 
+/**
+ * Maneja de forma consistente las excepciones de validación, negocio y comunicación con servicios
+ * externos. Permite a los consumidores del microservicio recibir mensajes claros cuando fallan
+ * reglas de contrato o integraciones entre microservicios.
+ */
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -22,6 +27,10 @@ public class GlobalExceptionHandler {
   private static final String DETAILS_KEY = "details";
   private static final String STATUS_KEY = "status";
 
+  /**
+   * Normaliza respuestas de validación de Bean Validation, devolviendo el mapa campo->mensaje para
+   * que el front-end pueda mostrar errores precisos al capturar contratos.
+   */
   @ExceptionHandler(MethodArgumentNotValidException.class)
   public ResponseEntity<Object> handleMethodArgumentNotValidException(
       MethodArgumentNotValidException exception) {
@@ -47,6 +56,10 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(body);
   }
 
+  /**
+   * Captura errores al invocar microservicios externos (clientes, usuarios, vehículos) y devuelve
+   * el body remoto para facilitar trazabilidad en auditorías.
+   */
   @ExceptionHandler(HttpClientErrorException.class)
   public ResponseEntity<Object> handleHttpClientErrorException(HttpClientErrorException exception) {
     logger.error(

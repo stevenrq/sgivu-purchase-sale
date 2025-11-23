@@ -60,6 +60,14 @@ public class PurchaseSaleController {
     this.purchaseSaleDetailService = purchaseSaleDetailService;
   }
 
+  /**
+   * Crea un contrato de compra o venta validando inventario, cliente y usuario en servicios
+   * externos. El detalle del vehículo puede ser enviado solo para compras; las ventas deben
+   * referenciar un vehículo ya adquirido.
+   *
+   * @apiNote Delegado en {@link PurchaseSaleService#create} para aplicar reglas de inventario y
+   *     estados de contrato. Este endpoint utiliza JWT para asociar el gestor responsable.
+   */
   @PostMapping
   @PreAuthorize("hasAuthority('purchase_sale:create')")
   public ResponseEntity<PurchaseSaleResponse> create(
@@ -69,6 +77,13 @@ public class PurchaseSaleController {
     return ResponseEntity.status(HttpStatus.CREATED).body(response);
   }
 
+  /**
+   * Recupera un contrato con datos enriquecidos de cliente, usuario e inventario desde servicios
+   * externos. Útil para vistas de detalle y auditorías.
+   *
+   * @param id identificador del contrato
+   * @return detalle completo o 404 cuando no existe
+   */
   @GetMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<PurchaseSaleDetailResponse> getById(@PathVariable Long id) {
@@ -78,6 +93,10 @@ public class PurchaseSaleController {
         .orElse(ResponseEntity.notFound().build());
   }
 
+  /**
+   * Lista los contratos en formato simple, pensado para listados rápidos o integraciones que no
+   * requieren datos enriquecidos.
+   */
   @GetMapping
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getAll() {
@@ -88,12 +107,20 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
+  /**
+   * Lista los contratos con enriquecimiento de cliente, usuario y vehículo, disparando llamadas a
+   * microservicios externos y aplicando caché intra-request para reducir latencia.
+   */
   @GetMapping("/detailed")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleDetailResponse>> getAllDetailed() {
     return ResponseEntity.ok(purchaseSaleDetailService.toDetails(purchaseSaleService.findAll()));
   }
 
+  /**
+   * Paginación básica sin enriquecer datos externos; útil para tableros que resuelven detalles vía
+   * llamadas adicionales al front.
+   */
   @GetMapping("/page/{page}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<Page<PurchaseSaleResponse>> getByPage(@PathVariable Integer page) {
@@ -104,6 +131,10 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(pagedResponse);
   }
 
+  /**
+   * Paginación con enriquecimiento de datos externos. Ideal para reportes operativos donde se
+   * necesitan nombres de clientes/usuarios y metadatos de inventario.
+   */
   @GetMapping("/page/{page}/detailed")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<Page<PurchaseSaleDetailResponse>> getDetailedPage(
@@ -213,6 +244,7 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
+  /** Obtiene las operaciones gestionadas por un usuario interno específico (responsable comercial). */
   @GetMapping("/user/{userId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByUserId(@PathVariable Long userId) {
@@ -223,6 +255,10 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
+  /**
+   * Busca las operaciones asociadas a un vehículo, permitiendo diagnosticar su ciclo completo de
+   * compra y venta dentro del inventario de usados.
+   */
   @GetMapping("/vehicle/{vehicleId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleDetailResponse>> getByVehicleId(

@@ -5,6 +5,10 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
+/**
+ * Repositorio de contratos de compra/venta. Expone búsquedas por claves de relación para alimentar
+ * consultas de inventario y reportes, además de soportar especificaciones dinámicas.
+ */
 public interface PurchaseSaleRepository
     extends JpaRepository<PurchaseSale, Long>, JpaSpecificationExecutor<PurchaseSale> {
 

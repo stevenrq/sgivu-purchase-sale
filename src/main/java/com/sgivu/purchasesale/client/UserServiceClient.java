@@ -9,6 +9,13 @@ import org.springframework.web.service.annotation.HttpExchange;
 @HttpExchange("/v1/users")
 public interface UserServiceClient {
 
+  /**
+   * Consulta al microservicio de usuarios para validar la existencia del responsable comercial y
+   * obtener sus datos básicos.
+   *
+   * @param id identificador del usuario interno
+   * @return datos completos del usuario
+   */
   @GetExchange("/{id}")
   User getUserById(@PathVariable Long id);
 }

@@ -25,6 +25,12 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 
+/**
+ * Entidad JPA que representa contratos de compra o venta de vehículos usados. Persistimos únicamente
+ * identificadores de cliente, usuario y vehículo para mantener bajo acoplamiento con microservicios
+ * maestros, mientras que los precios y condiciones financieras se mantienen localmente para
+ * auditoría y reportes.
+ */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -91,6 +97,10 @@ public class PurchaseSale implements Serializable {
   @Column(name = "updated_at", nullable = false)
   private LocalDateTime updatedAt;
 
+  /**
+   * Inicializa marcas de tiempo antes de persistir. Se fuerza updatedAt para que reportes y
+   * proyecciones utilicen un valor consistente en la primera escritura.
+   */
   @PrePersist
   void onCreate() {
     LocalDateTime now = LocalDateTime.now();
@@ -98,6 +108,7 @@ public class PurchaseSale implements Serializable {
     this.updatedAt = now;
   }
 
+  /** Actualiza la marca temporal de modificación para auditorías. */
   @PreUpdate
   void onUpdate() {
     this.updatedAt = LocalDateTime.now();

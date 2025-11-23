@@ -515,6 +515,10 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
+  /**
+   * Valida que el usuario exista en el microservicio de usuarios. Evita registrar contratos con
+   * responsables inexistentes que luego rompan auditorías.
+   */
   private Long resolveUserId(Long userId) {
     if (userId == null) {
       throw new IllegalArgumentException("El ID del usuario debe ser proporcionado.");
@@ -522,6 +526,11 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return userServiceClient.getUserById(userId).getId();
   }
 
+  /**
+   * Resuelve el identificador de cliente contra el microservicio de clientes, intentando primero
+   * persona y luego empresa. Permite que el contrato se mantenga referenciado aun cuando el tipo de
+   * cliente cambie en origen.
+   */
   private Long resolveClientId(Long clientId) {
     if (clientId == null) {
       throw new IllegalArgumentException("El ID del cliente debe ser proporcionado.");
@@ -545,6 +554,10 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
+  /**
+   * Valida la existencia del vehículo en el microservicio de inventario (carro o motocicleta). Se
+   * usa en contratos de venta para impedir referencias a inventario inexistente.
+   */
   private Long resolveVehicleId(Long vehicleId) {
     if (vehicleId == null) {
       throw new IllegalArgumentException("El ID del vehículo debe ser proporcionado.");

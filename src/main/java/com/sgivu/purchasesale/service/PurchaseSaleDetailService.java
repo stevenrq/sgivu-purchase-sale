@@ -59,6 +59,7 @@ public class PurchaseSaleDetailService {
     Map<Long, ClientSummary> clientCache = new HashMap<>();
     Map<Long, UserSummary> userCache = new HashMap<>();
     Map<Long, VehicleSummary> vehicleCache = new HashMap<>();
+    // Caches locales por lote para evitar múltiples llamadas REST a los mismos ids.
 
     return contracts.stream()
         .map(
