@@ -3,13 +3,13 @@ package com.sgivu.purchasesale.dto;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
 /**
  * Modelo base de vehículo usado en las integraciones con el microservicio de inventario. Agrupa
  * atributos comunes entre automóviles y motocicletas para mantener un contrato único en las
  * operaciones de compra y venta.
  */
+@Data
+@NoArgsConstructor
 public class Vehicle {
   private Long id;
   private String brand;

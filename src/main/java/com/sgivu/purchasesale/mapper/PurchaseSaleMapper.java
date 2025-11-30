@@ -45,7 +45,6 @@ public interface PurchaseSaleMapper {
   @Mapping(target = "updatedAt", ignore = true)
   PurchaseSale toPurchaseSale(PurchaseSaleRequest request);
 
-  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
   /**
    * Aplica cambios parciales desde el request hacia la entidad existente sin tocar campos nulos ni
    * columnas manejadas por triggers/lifecycle.
@@ -53,6 +52,7 @@ public interface PurchaseSaleMapper {
    * @param request datos entrantes
    * @param purchaseSale entidad persistida a actualizar
    */
+  @BeanMapping(nullValuePropertyMappingStrategy = NullValuePropertyMappingStrategy.IGNORE)
   @Mapping(target = "id", ignore = true)
   @Mapping(target = "createdAt", ignore = true)
   @Mapping(target = "updatedAt", ignore = true)

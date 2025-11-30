@@ -12,9 +12,27 @@ import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 public interface PurchaseSaleRepository
     extends JpaRepository<PurchaseSale, Long>, JpaSpecificationExecutor<PurchaseSale> {
 
+  /**
+   * Obtiene los contratos asociados a un cliente específico.
+   *
+   * @param clientId identificador del cliente (persona o empresa)
+   * @return listado de contratos vinculados
+   */
   List<PurchaseSale> findByClientId(Long clientId);
 
+  /**
+   * Recupera los contratos gestionados por un usuario interno.
+   *
+   * @param userId identificador del usuario responsable
+   * @return lista de contratos relacionados
+   */
   List<PurchaseSale> findByUserId(Long userId);
 
+  /**
+   * Obtiene el historial de operaciones ligadas a un vehículo.
+   *
+   * @param vehicleId identificador del vehículo
+   * @return contratos que referencian el vehículo
+   */
   List<PurchaseSale> findByVehicleId(Long vehicleId);
 }

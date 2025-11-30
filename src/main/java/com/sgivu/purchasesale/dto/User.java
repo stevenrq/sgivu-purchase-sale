@@ -4,13 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 /**
  * Usuario interno del ecosistema SGIVU. Se consulta en el microservicio de usuarios para validar
  * responsables de contratos y mostrar datos de contacto en la capa de presentación.
  */
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
 public class User {
   private Long id;
   private Long nationalId;

@@ -11,6 +11,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 @SpringBootApplication
 public class PurchaseSaleApplication {
 
+  /** Arranca la aplicación Spring Boot para el microservicio de compras y ventas. */
   public static void main(String[] args) {
     SpringApplication.run(PurchaseSaleApplication.class, args);
   }

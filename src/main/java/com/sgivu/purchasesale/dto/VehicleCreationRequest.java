@@ -6,14 +6,14 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-@Getter
-@Setter
-@ToString
 /**
  * Datos mínimos para registrar un vehículo en el microservicio de inventario cuando el contrato es
  * de compra. Se valida en {@code PurchaseSaleServiceImpl} antes de enviar la alta remota para
  * evitar registros incompletos que rompan la disponibilidad del stock.
  */
+@Getter
+@Setter
+@ToString
 public class VehicleCreationRequest {
 
   @NotNull(message = "El tipo de vehículo es obligatorio para registrar la compra.")

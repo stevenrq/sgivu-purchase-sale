@@ -83,6 +83,11 @@ public class SecurityConfig {
     return AuthorizationManagers.anyOf(internalServiceAuthManager, authenticatedManager);
   }
 
+  /**
+   * Configura el decodificador JWT con la URL del Authorization Server de SGIVU.
+   *
+   * @return {@link JwtDecoder} inicializado con el issuer configurado
+   */
   @Bean
   JwtDecoder jwtDecoder() {
     return NimbusJwtDecoder.withIssuerLocation(
@@ -91,13 +96,10 @@ public class SecurityConfig {
   }
 
   /**
-   * Convierte el claim rolesAndPermissions en una lista de SimpleGrantedAuthority
+   * Convierte el claim {@code rolesAndPermissions} en una lista de {@link SimpleGrantedAuthority}
+   * para que Spring Security pueda evaluarlos en anotaciones {@code @PreAuthorize}.
    *
-   * @return un {@link JwtAuthenticationConverter} configurado que extrae las autoridades del claim
-   *     JWT "rolesAndPermissions" para ser utilizadas por Spring Security para la autorización.
-   * @see JwtAuthenticationConverter
-   * @see SimpleGrantedAuthority
-   * @see GrantedAuthority
+   * @return convertidor JWT listo para extraer roles y permisos del token
    */
   @Bean
   JwtAuthenticationConverter convert() {

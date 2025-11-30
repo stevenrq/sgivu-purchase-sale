@@ -18,22 +18,38 @@ public interface VehicleServiceClient {
   /**
    * Recupera un automóvil previamente registrado, utilizado para validar disponibilidad en
    * contratos de venta.
+   *
+   * @param id identificador del automóvil
+   * @return datos del vehículo
    */
   @GetExchange("/cars/{id}")
   Car getCarById(@PathVariable Long id);
 
-  /** Recupera una motocicleta previamente registrada. */
+  /**
+   * Recupera una motocicleta previamente registrada.
+   *
+   * @param id identificador de la motocicleta
+   * @return datos del vehículo
+   */
   @GetExchange("/motorcycles/{id}")
   Motorcycle getMotorcycleById(@PathVariable Long id);
 
   /**
    * Registra un automóvil adquirido; la creación se dispara solo en contratos de compra para no
    * duplicar inventario.
+   *
+   * @param car datos completos del automóvil a persistir en inventario
+   * @return vehículo creado con su identificador
    */
   @PostExchange("/cars")
   Car createCar(@RequestBody Car car);
 
-  /** Registra una motocicleta adquirida. */
+  /**
+   * Registra una motocicleta adquirida.
+   *
+   * @param motorcycle datos de la motocicleta a registrar
+   * @return vehículo creado con su identificador
+   */
   @PostExchange("/motorcycles")
   Motorcycle createMotorcycle(@RequestBody Motorcycle motorcycle);
 }

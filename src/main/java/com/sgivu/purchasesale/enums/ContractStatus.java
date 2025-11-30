@@ -8,15 +8,15 @@ package com.sgivu.purchasesale.enums;
  * finalización o cancelación.
  */
 public enum ContractStatus {
-  /** Contrato pendiente de confirmacion. Significa que el contrato está a la espera de ser confirmado por ambas partes. */
+  /** Contrato pendiente de confirmación por las partes o por validaciones internas. */
   PENDING,
 
-  /** Contrato activo y en ejecución. Significa que el contrato ha sido confirmado y está en vigor. */
+  /** Contrato confirmado y en ejecución. */
   ACTIVE,
 
-  /** Contrato que ha sido completado exitosamente. Significa que todas las obligaciones del contrato han sido cumplidas. */
+  /** Contrato completado exitosamente con obligaciones cumplidas. */
   COMPLETED,
 
-  /** Contrato que ha sido cancelado antes de su finalización. Significa que el contrato ha sido anulado y no tiene validez. */
+  /** Contrato anulado antes de finalizarse. */
   CANCELED
 }

@@ -33,6 +33,9 @@ public class AppConfig {
    * Builder común para RestClient con load balancer y propagación de JWT. Permite que las llamadas
    * salientes honren la identidad del usuario autenticado y pasen por el Discovery Client de Spring
    * Cloud.
+   *
+   * @param jwtAuthorizationInterceptor interceptor que copia el JWT vigente
+   * @return builder preconfigurado listo para clonar
    */
   @Bean
   @LoadBalanced
@@ -43,6 +46,9 @@ public class AppConfig {
   /**
    * Proxy hacia el microservicio de clientes. Incluye la cabecera interna para autorizarse como
    * servicio confiable.
+   *
+   * @param restClientBuilder builder con balanceo y propagación de JWT
+   * @return cliente declarativo de clientes
    */
   @Bean
   ClientServiceClient clientServiceClient(RestClient.Builder restClientBuilder) {
@@ -58,7 +64,12 @@ public class AppConfig {
     return factory.createClient(ClientServiceClient.class);
   }
 
-  /** Proxy hacia el microservicio de usuarios (gestores internos). */
+  /**
+   * Proxy hacia el microservicio de usuarios (gestores internos).
+   *
+   * @param restClientBuilder builder base para construir el cliente HTTP
+   * @return cliente declarativo de usuarios
+   */
   @Bean
   UserServiceClient userServiceClient(RestClient.Builder restClientBuilder) {
     RestClient restClient =
@@ -73,7 +84,12 @@ public class AppConfig {
     return factory.createClient(UserServiceClient.class);
   }
 
-  /** Proxy hacia el microservicio de inventario de vehículos usados. */
+  /**
+   * Proxy hacia el microservicio de inventario de vehículos usados.
+   *
+   * @param restClientBuilder builder base para invocar inventario
+   * @return cliente declarativo de vehículos
+   */
   @Bean
   VehicleServiceClient vehicleServiceClient(RestClient.Builder restClientBuilder) {
     RestClient restClient =

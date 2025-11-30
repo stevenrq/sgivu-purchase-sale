@@ -45,6 +45,12 @@ public class GlobalExceptionHandler {
     return ResponseEntity.badRequest().body(body);
   }
 
+  /**
+   * Retorna un mensaje claro cuando el servicio detecta argumentos inválidos o reglas incumplidas.
+   *
+   * @param exception excepción de negocio con el detalle de la validación
+   * @return respuesta HTTP 400 con el mensaje específico
+   */
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Object> handleIllegalArgumentException(IllegalArgumentException exception) {
     logger.warn("Solicitud inválida: {}", exception.getMessage());
@@ -75,6 +81,12 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(exception.getStatusCode()).body(body);
   }
 
+  /**
+   * Maneja intentos de acceso sin autorización suficiente, ya sea por ausencia de JWT o permisos.
+   *
+   * @param exception excepción lanzada por el AuthorizationManager
+   * @return respuesta HTTP 403 con detalle del motivo
+   */
   @ExceptionHandler(AuthorizationDeniedException.class)
   public ResponseEntity<Object> handleAuthorizationDeniedException(
       AuthorizationDeniedException exception) {
@@ -87,6 +99,12 @@ public class GlobalExceptionHandler {
     return ResponseEntity.status(HttpStatus.FORBIDDEN).body(body);
   }
 
+  /**
+   * Fallback genérico ante errores inesperados para evitar exponer stacktraces en las respuestas.
+   *
+   * @param exception excepción no controlada
+   * @return respuesta HTTP 500 con mensaje de error interno
+   */
   @ExceptionHandler(Exception.class)
   public ResponseEntity<Object> handleGeneralException(Exception exception) {
     logger.error("Error inesperado.", exception);

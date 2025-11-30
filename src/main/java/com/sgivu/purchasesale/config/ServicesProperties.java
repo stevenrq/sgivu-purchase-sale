@@ -18,6 +18,7 @@ public class ServicesProperties {
 
   private Map<String, ServiceInfo> map;
 
+  /** Descriptor de un microservicio externo configurado en application.yaml. */
   @Setter
   @Getter
   public static class ServiceInfo {

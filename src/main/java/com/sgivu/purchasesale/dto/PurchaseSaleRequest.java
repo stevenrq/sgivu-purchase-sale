@@ -12,9 +12,6 @@ import lombok.Getter;
 import lombok.Setter;
 import lombok.ToString;
 
-@Getter
-@Setter
-@ToString
 /**
  * Payload de entrada para crear o actualizar contratos de compra/venta. Combina datos financieros,
  * condiciones de pago y referencias a entidades maestras gestionadas en microservicios externos
@@ -23,6 +20,9 @@ import lombok.ToString;
  * @apiNote Para contratos de compra se permite adjuntar {@link VehicleCreationRequest} con la
  *     información necesaria para dar de alta el vehículo en el microservicio de inventario.
  */
+@Getter
+@Setter
+@ToString
 public class PurchaseSaleRequest {
 
   @NotNull(message = "El ID del cliente es obligatorio.")

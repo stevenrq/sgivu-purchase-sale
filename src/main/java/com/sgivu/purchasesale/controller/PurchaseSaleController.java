@@ -209,6 +209,13 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(toDetailPage(filteredContracts));
   }
 
+  /**
+   * Actualiza un contrato existente conservando su tipo original y revalidando los datos externos.
+   *
+   * @param id identificador del contrato a modificar
+   * @param purchaseSaleRequest datos nuevos del contrato
+   * @return contrato actualizado o 404 si no existe
+   */
   @PutMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:update')")
   public ResponseEntity<PurchaseSaleResponse> update(
@@ -221,6 +228,13 @@ public class PurchaseSaleController {
         .orElse(ResponseEntity.notFound().build());
   }
 
+  /**
+   * Elimina un contrato por su identificador cuando existe. Opera de forma idempotente retornando
+   * 404 si el recurso ya no se encuentra.
+   *
+   * @param id identificador del contrato
+   * @return 204 en caso de eliminación exitosa o 404 si no existe
+   */
   @DeleteMapping("/{id}")
   @PreAuthorize("hasAuthority('purchase_sale:delete')")
   public ResponseEntity<Void> deleteById(@PathVariable Long id) {
@@ -234,6 +248,12 @@ public class PurchaseSaleController {
         .orElse(ResponseEntity.notFound().build());
   }
 
+  /**
+   * Lista las operaciones realizadas por un cliente específico (persona o empresa).
+   *
+   * @param clientId identificador del cliente
+   * @return lista de contratos asociados
+   */
   @GetMapping("/client/{clientId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByClientId(@PathVariable Long clientId) {
