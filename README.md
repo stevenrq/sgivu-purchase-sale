@@ -173,6 +173,11 @@ GET    /actuator/health|info         -> Endpoints públicos de monitoreo.
 * Asegurar conectividad privada (VPC/Subnets) hacia `sgivu-config`, `sgivu-discovery`, `sgivu-auth` y
   los microservicios dependientes.
 
+## 📐 Diagramas
+- Contexto del servicio: `docs/architecture/services/sgivu-purchase-sale-context.puml`
+- Componentes internos (clientes REST, interceptores, repositorio): `docs/architecture/services/sgivu-purchase-sale-components.puml`
+- Modelo de datos (PurchaseSale + enums): `docs/architecture/datamodel/sgivu-purchase-sale-datamodel.puml`
+
 ## 📊 Monitoreo
 
 * Spring Boot Actuator habilita `health`, `info`, `metrics` y `prometheus` (según configuración).

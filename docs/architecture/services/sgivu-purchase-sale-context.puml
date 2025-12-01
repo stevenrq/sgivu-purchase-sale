@@ -1,0 +1,31 @@
+@startuml
+' Contexto sgivu-purchase-sale.
+' Basado en: README sgivu-purchase-sale, AppConfig.java (clientes REST a client/user/vehicle),
+' sgivu-config-repo (datasource y URLs), GatewayRoutesConfig (/v1/purchase-sales/**),
+' data_loader de sgivu-ml (consulta contratos).
+left to right direction
+
+actor "Frontend Angular" as Frontend
+rectangle "API Gateway" as Gateway
+rectangle "Auth Service" as Auth
+rectangle "Client Service" as ClientSvc
+rectangle "User Service" as UserSvc
+rectangle "Vehicle Service" as VehicleSvc
+rectangle "ML Service\n(FastAPI)" as MLSvc
+rectangle "Purchase/Sale Service\n(sgivu-purchase-sale)" as PurchaseSvc
+database "PostgreSQL\nsgivu_purchase_sale_db" as PurchaseDB
+rectangle "Config Server" as Config
+rectangle "Eureka" as Eureka
+
+Frontend --> Gateway : Gestiona contratos\ncompra/venta
+Gateway --> PurchaseSvc : /v1/purchase-sales/**
+Auth --> PurchaseSvc : JWT issuer\n(Resource Server)
+PurchaseSvc --> ClientSvc : RestClient\nvalida cliente (persona/empresa)
+PurchaseSvc --> UserSvc : RestClient\nvalida asesor
+PurchaseSvc --> VehicleSvc : RestClient\nconsulta/crea vehículo
+PurchaseSvc --> PurchaseDB
+PurchaseSvc ..> Config
+PurchaseSvc ..> Eureka
+MLSvc --> Gateway : Consulta contratos\n(/v1/purchase-sales/search) para dataset
+
+@enduml

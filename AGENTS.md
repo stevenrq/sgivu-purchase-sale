@@ -42,3 +42,8 @@ docker build -t sgivu-purchase-sale .   # container image
 
 - Keep secrets out of the repo; supply `SERVICE_INTERNAL_SECRET_KEY`, datasource credentials, and service URLs via environment or Config Server.
 - To exercise internal calls, include header `X-Internal-Service-Key` with the configured key; normal access requires valid JWTs with `rolesAndPermissions`.
+
+## Architecture Docs
+- Service context: `docs/architecture/services/sgivu-purchase-sale-context.puml`
+- Components (REST clients, interceptors, repository): `docs/architecture/services/sgivu-purchase-sale-components.puml`
+- Data model: `docs/architecture/datamodel/sgivu-purchase-sale-datamodel.puml`

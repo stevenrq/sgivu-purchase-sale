@@ -1,0 +1,54 @@
+@startuml
+' Componentes sgivu-purchase-sale.
+' Basado en: PurchaseSaleController/Service/Repository, AppConfig (HttpServiceProxyFactory),
+' clientes REST (ClientServiceClient, UserServiceClient, VehicleServiceClient),
+' SecurityConfig + filtros internos, entidad PurchaseSale.
+left to right direction
+
+package "API" {
+  component "PurchaseSaleController\n(/v1/purchase-sales/**)" as Ctrl
+}
+
+package "Aplicación" {
+  component "PurchaseSaleServiceImpl" as Service
+  component "Mapper DTO/Entity\n(MapStruct)" as Mapper
+}
+
+package "Integraciones" {
+  component "ClientServiceClient\n(vía RestClient lb://sgivu-client)" as ClientClient
+  component "UserServiceClient\n(lb://sgivu-user)" as UserClient
+  component "VehicleServiceClient\n(lb://sgivu-vehicle)" as VehicleClient
+  component "JwtAuthorizationInterceptor\n(propaga JWT a clientes)" as JwtInterceptor
+  component "ServicesProperties\n(URLs de servicios)" as ServicesProps
+}
+
+package "Seguridad" {
+  component "SecurityConfig\nResource Server" as SecurityCfg
+  component "InternalServiceAuthorizationManager\n(X-Internal-Service-Key)" as InternalAuth
+  component "InternalServiceAuthenticationFilter" as InternalFilter
+}
+
+package "Persistencia" {
+  component "PurchaseSaleRepository" as Repo
+  database "PostgreSQL\npurchase_sales" as DB
+}
+
+Ctrl --> Service
+Service --> Repo
+Service --> Mapper
+Service --> ClientClient
+Service --> UserClient
+Service --> VehicleClient
+
+Repo --> DB
+
+ClientClient --> JwtInterceptor
+UserClient --> JwtInterceptor
+VehicleClient --> JwtInterceptor
+JwtInterceptor ..> ServicesProps
+
+SecurityCfg --> InternalAuth
+SecurityCfg --> InternalFilter
+SecurityCfg ..> Ctrl
+
+@enduml

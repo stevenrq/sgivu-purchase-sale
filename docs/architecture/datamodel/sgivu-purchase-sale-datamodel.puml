@@ -1,0 +1,51 @@
+@startuml
+' Modelo de datos sgivu-purchase-sale.
+' Basado en PurchaseSale.java y enums ContractType, ContractStatus, PaymentMethod.
+left to right direction
+
+enum ContractType {
+  PURCHASE
+  SALE
+}
+
+enum ContractStatus {
+  PENDING
+  ACTIVE
+  COMPLETED
+  CANCELED
+}
+
+enum PaymentMethod {
+  CASH
+  BANK_TRANSFER
+  BANK_DEPOSIT
+  CASHIERS_CHECK
+  MIXED
+  FINANCING
+  DIGITAL_WALLET
+  TRADE_IN
+  INSTALLMENT_PAYMENT
+}
+
+class PurchaseSale {
+  +id: Long
+  +clientId: Long
+  +userId: Long
+  +vehicleId: Long
+  +purchasePrice: Double
+  +salePrice: Double
+  +contractType: ContractType
+  +contractStatus: ContractStatus
+  +paymentLimitations
+  +paymentTerms
+  +paymentMethod: PaymentMethod
+  +observations
+  +createdAt
+  +updatedAt
+}
+
+PurchaseSale --> ContractType
+PurchaseSale --> ContractStatus
+PurchaseSale --> PaymentMethod
+
+@enduml
