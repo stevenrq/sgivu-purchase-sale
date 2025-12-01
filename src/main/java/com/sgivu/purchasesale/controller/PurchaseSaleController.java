@@ -171,6 +171,7 @@ public class PurchaseSaleController {
   public ResponseEntity<Page<PurchaseSaleDetailResponse>> searchContracts(
       @RequestParam(defaultValue = "0") Integer page,
       @RequestParam(defaultValue = "10") Integer size,
+      @RequestParam(defaultValue = "true") boolean detailed,
       @RequestParam(required = false) ContractType contractType,
       @RequestParam(required = false) ContractStatus contractStatus,
       @RequestParam(required = false) Long clientId,
@@ -206,6 +207,11 @@ public class PurchaseSaleController {
             .build();
 
     var filteredContracts = purchaseSaleService.search(criteria, pageable);
+    if (!detailed) {
+      var simplePage =
+          filteredContracts.map(purchaseSaleMapper::toPurchaseSaleDetailResponse);
+      return ResponseEntity.ok(simplePage);
+    }
     return ResponseEntity.ok(toDetailPage(filteredContracts));
   }
 

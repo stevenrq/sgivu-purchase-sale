@@ -20,6 +20,7 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.security.oauth2.jwt.NimbusJwtDecoder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter;
+import org.springframework.security.oauth2.server.resource.web.authentication.BearerTokenAuthenticationFilter;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.access.intercept.RequestAuthorizationContext;
 
@@ -35,12 +36,15 @@ public class SecurityConfig {
 
   private final InternalServiceAuthorizationManager internalServiceAuthManager;
   private final ServicesProperties servicesProperties;
+  private final InternalServiceAuthenticationFilter internalServiceAuthenticationFilter;
 
   public SecurityConfig(
       InternalServiceAuthorizationManager internalServiceAuthManager,
-      ServicesProperties servicesProperties) {
+      ServicesProperties servicesProperties,
+      InternalServiceAuthenticationFilter internalServiceAuthenticationFilter) {
     this.internalServiceAuthManager = internalServiceAuthManager;
     this.servicesProperties = servicesProperties;
+    this.internalServiceAuthenticationFilter = internalServiceAuthenticationFilter;
   }
 
   /**
@@ -62,7 +66,10 @@ public class SecurityConfig {
                     .access(internalOrAuthenticatedAuthorizationManager())
                     .anyRequest()
                     .authenticated())
-        .csrf(AbstractHttpConfigurer::disable);
+        .csrf(AbstractHttpConfigurer::disable)
+        // Inyecta Authentication con permisos cuando se usa la clave interna
+        .addFilterBefore(
+            internalServiceAuthenticationFilter, BearerTokenAuthenticationFilter.class);
 
     return http.build();
   }
