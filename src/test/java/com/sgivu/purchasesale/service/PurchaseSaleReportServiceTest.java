@@ -131,6 +131,7 @@ class PurchaseSaleReportServiceTest {
             .id(7L)
             .type("CAR")
             .brand("Kia")
+            .line("Rio")
             .model("Rio")
             .plate("ABC123")
             .status("Activo")

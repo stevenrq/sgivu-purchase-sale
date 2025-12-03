@@ -14,6 +14,7 @@ public class VehicleSummary {
   Long id;
   String type;
   String brand;
+  String line;
   String model;
   String plate;
   String status;

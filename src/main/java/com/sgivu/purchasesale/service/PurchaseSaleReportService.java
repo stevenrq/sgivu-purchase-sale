@@ -71,6 +71,7 @@ public class PurchaseSaleReportService {
     "Usuario (username)",
     "Email del usuario",
     "Marca del vehículo",
+    "Línea del vehículo",
     "Modelo del vehículo",
     "Placa del vehículo",
     "Tipo de vehículo",
@@ -202,6 +203,7 @@ public class PurchaseSaleReportService {
         setCellValue(row, column++, getUsername(contract.getUserSummary()));
         setCellValue(row, column++, getUserEmail(contract.getUserSummary()));
         setCellValue(row, column++, getVehicleBrand(contract.getVehicleSummary()));
+        setCellValue(row, column++, getVehicleLine(contract.getVehicleSummary()));
         setCellValue(row, column++, getVehicleModel(contract.getVehicleSummary()));
         setCellValue(row, column++, getVehiclePlate(contract.getVehicleSummary()));
         setCellValue(
@@ -487,9 +489,13 @@ public class PurchaseSaleReportService {
     return LABEL_TIPO
         + safeText(getVehicleTypeLabel(vehicleSummary.getType()), "N/D")
         + '\n'
-        + "Modelo: "
+        + "Marca: "
         + safeText(vehicleSummary.getBrand(), "Marca")
-        + " "
+        + '\n'
+        + "Línea: "
+        + safeText(vehicleSummary.getLine(), "N/D")
+        + '\n'
+        + "Modelo: "
         + safeText(vehicleSummary.getModel(), "Modelo")
         + '\n'
         + "Placa: "
@@ -659,6 +665,11 @@ public class PurchaseSaleReportService {
     return summary == null ? "" : safeText(summary.getBrand(), "");
   }
 
+  /** Obtiene la línea del vehículo o cadena vacía. */
+  private String getVehicleLine(VehicleSummary summary) {
+    return summary == null ? "" : safeText(summary.getLine(), "");
+  }
+
   /** Obtiene el modelo del vehículo o cadena vacía. */
   private String getVehicleModel(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getModel(), "");
@@ -787,6 +798,7 @@ public class PurchaseSaleReportService {
       getUsername(user),
       getUserEmail(user),
       getVehicleBrand(vehicle),
+      getVehicleLine(vehicle),
       getVehicleModel(vehicle),
       getVehiclePlate(vehicle),
       safeText(getVehicleTypeLabel(vehicle == null ? null : vehicle.getType()), ""),
