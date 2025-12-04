@@ -162,6 +162,13 @@ GET    /actuator/health|info         -> Endpoints públicos de monitoreo.
     sgivu-purchase-sale
   ```
 
+## 🐳 Build & Push Docker
+
+- Ejecuta `./build-image.bash` desde esta carpeta para detener/borrar contenedores previos, limpiar la imagen
+  `stevenrq/sgivu-purchase-sale:v1`, empaquetar con Maven y publicar la nueva imagen (`docker build && docker push`).
+- El orquestador `../build-docker-images/build_push_all.bash` llama automáticamente a este script al construir todos los
+  servicios.
+
 ## ☁️ Despliegue en AWS
 
 * Publicar la imagen en Amazon ECR y desplegar en ECS/Fargate, EKS o EC2 detrás de `sgivu-gateway`.
