@@ -77,8 +77,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setContractType(ContractType.PURCHASE);
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
 
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
-        .thenReturn(List.of(existingPurchase));
+    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
     when(purchaseSaleRepository.save(any(PurchaseSale.class)))
         .thenAnswer(
             invocation -> {
@@ -105,8 +104,7 @@ class PurchaseSaleServiceImplTest {
   }
 
   @Test
-  @DisplayName(
-      "create debe registrar el vehículo cuando se omite el identificador en una compra")
+  @DisplayName("create debe registrar el vehículo cuando se omite el identificador en una compra")
   void createPurchase_ShouldRegisterVehicleWhenVehicleIdMissing() {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setVehicleId(null);
@@ -153,8 +151,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
     existingPurchase.setPurchasePrice(PURCHASE_PRICE);
 
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
-        .thenReturn(List.of(existingPurchase));
+    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
     when(purchaseSaleRepository.save(any(PurchaseSale.class)))
         .thenAnswer(
             invocation -> {
@@ -205,8 +202,7 @@ class PurchaseSaleServiceImplTest {
     existingPurchase.setContractStatus(ContractStatus.COMPLETED);
     existingPurchase.setPurchasePrice(PURCHASE_PRICE);
 
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
-        .thenReturn(List.of(existingPurchase));
+    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
 
     assertThatThrownBy(() -> purchaseSaleService.create(request))
         .isInstanceOf(IllegalArgumentException.class)
@@ -214,7 +210,8 @@ class PurchaseSaleServiceImplTest {
   }
 
   @Test
-  @DisplayName("create debe rechazar ventas cuando ya existe una venta pendiente, activa o completada")
+  @DisplayName(
+      "create debe rechazar ventas cuando ya existe una venta pendiente, activa o completada")
   void create_WhenSaleAlreadyExists_ShouldThrowException() {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
