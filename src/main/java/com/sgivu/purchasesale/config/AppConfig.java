@@ -4,10 +4,13 @@ import com.sgivu.purchasesale.client.ClientServiceClient;
 import com.sgivu.purchasesale.client.UserServiceClient;
 import com.sgivu.purchasesale.client.VehicleServiceClient;
 import com.sgivu.purchasesale.security.JwtAuthorizationInterceptor;
+import java.util.Objects;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.lang.NonNull;
+import org.springframework.util.StringUtils;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.support.RestClientAdapter;
 import org.springframework.web.service.invoker.HttpServiceProxyFactory;
@@ -19,6 +22,8 @@ import org.springframework.web.service.invoker.HttpServiceProxyFactory;
  */
 @Configuration
 public class AppConfig {
+
+  private static final String INTERNAL_SERVICE_KEY_HEADER = "X-Internal-Service-Key";
 
   @Value("${service.internal.secret-key}")
   private String internalServiceKey;
@@ -40,7 +45,7 @@ public class AppConfig {
   @Bean
   @LoadBalanced
   RestClient.Builder restClientBuilder(JwtAuthorizationInterceptor jwtAuthorizationInterceptor) {
-    return RestClient.builder().requestInterceptor(jwtAuthorizationInterceptor);
+    return RestClient.builder().requestInterceptors(list -> list.add(jwtAuthorizationInterceptor));
   }
 
   /**
@@ -55,8 +60,8 @@ public class AppConfig {
     RestClient restClient =
         restClientBuilder
             .clone()
-            .baseUrl(servicesProperties.getMap().get("sgivu-client").getUrl())
-            .defaultHeader("X-Internal-Service-Key", internalServiceKey)
+            .baseUrl(serviceUrl("sgivu-client"))
+            .defaultHeader(INTERNAL_SERVICE_KEY_HEADER, internalServiceKey)
             .build();
 
     RestClientAdapter adapter = RestClientAdapter.create(restClient);
@@ -75,8 +80,8 @@ public class AppConfig {
     RestClient restClient =
         restClientBuilder
             .clone()
-            .baseUrl(servicesProperties.getMap().get("sgivu-user").getUrl())
-            .defaultHeader("X-Internal-Service-Key", internalServiceKey)
+            .baseUrl(serviceUrl("sgivu-user"))
+            .defaultHeader(INTERNAL_SERVICE_KEY_HEADER, internalServiceKey)
             .build();
 
     RestClientAdapter adapter = RestClientAdapter.create(restClient);
@@ -95,12 +100,34 @@ public class AppConfig {
     RestClient restClient =
         restClientBuilder
             .clone()
-            .baseUrl(servicesProperties.getMap().get("sgivu-vehicle").getUrl())
-            .defaultHeader("X-Internal-Service-Key", internalServiceKey)
+            .baseUrl(serviceUrl("sgivu-vehicle"))
+            .defaultHeader(INTERNAL_SERVICE_KEY_HEADER, internalServiceKey)
             .build();
 
     RestClientAdapter adapter = RestClientAdapter.create(restClient);
     HttpServiceProxyFactory factory = HttpServiceProxyFactory.builderFor(adapter).build();
     return factory.createClient(VehicleServiceClient.class);
+  }
+
+  /**
+   * Obtiene la URL base de un servicio a partir de su clave en la configuración.
+   *
+   * @param serviceKey clave del servicio
+   * @return URL base del servicio
+   * @throws IllegalStateException si no se encuentra la configuración del servicio o su URL
+   */
+  private @NonNull String serviceUrl(String serviceKey) {
+    var svc = servicesProperties.getMap().get(serviceKey);
+    if (svc == null) {
+      throw new IllegalStateException(
+          "Falta la configuración del servicio para la clave: " + serviceKey);
+    }
+
+    String url = svc.getUrl();
+    if (!StringUtils.hasText(url)) {
+      throw new IllegalStateException("Falta la URL del servicio para la clave: " + serviceKey);
+    }
+
+    return Objects.requireNonNull(url);
   }
 }

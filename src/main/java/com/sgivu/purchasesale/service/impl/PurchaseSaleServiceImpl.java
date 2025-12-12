@@ -24,6 +24,7 @@ import java.util.Objects;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.lang.NonNull;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -86,7 +87,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
 
   @Override
   public Optional<PurchaseSale> findById(Long id) {
-    return purchaseSaleRepository.findById(id);
+    long resolvedId = requireContractId(id);
+    return purchaseSaleRepository.findById(resolvedId);
   }
 
   @Override
@@ -96,13 +98,13 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
 
   @Override
   public Page<PurchaseSale> findAll(Pageable pageable) {
-    return purchaseSaleRepository.findAll(pageable);
+    return purchaseSaleRepository.findAll(requirePageable(pageable));
   }
 
   @Override
   public Page<PurchaseSale> search(PurchaseSaleFilterCriteria criteria, Pageable pageable) {
     return purchaseSaleRepository.findAll(
-        PurchaseSaleSpecifications.withFilters(criteria), pageable);
+        PurchaseSaleSpecifications.withFilters(criteria), requirePageable(pageable));
   }
 
   /**
@@ -112,6 +114,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   @Transactional
   @Override
   public Optional<PurchaseSale> update(Long id, PurchaseSaleRequest purchaseSaleRequest) {
+    long resolvedId = requireContractId(id);
     ContractType contractType = normalizeContractType(purchaseSaleRequest);
     Long resolvedClientId = resolveClientId(purchaseSaleRequest.getClientId());
     Long resolvedUserId = resolveUserId(purchaseSaleRequest.getUserId());
@@ -120,7 +123,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
         purchaseSaleRepository.findByVehicleId(resolvedVehicleId);
 
     return purchaseSaleRepository
-        .findById(id)
+        .findById(resolvedId)
         .map(
             existingPurchaseSale -> {
               if (existingPurchaseSale.getContractType() != contractType) {
@@ -147,7 +150,7 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   @Transactional
   @Override
   public void deleteById(Long id) {
-    purchaseSaleRepository.deleteById(id);
+    purchaseSaleRepository.deleteById(requireContractId(id));
   }
 
   @Override
@@ -329,8 +332,8 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
   }
 
   /**
-   * Las ventas deben respetar el precio de compra registrado previamente y fijar un precio de
-   * venta positivo; de lo contrario impactaría los márgenes y la disponibilidad del inventario.
+   * Las ventas deben respetar el precio de compra registrado previamente y fijar un precio de venta
+   * positivo; de lo contrario impactaría los márgenes y la disponibilidad del inventario.
    */
   private void prepareSaleRequest(
       PurchaseSaleRequest purchaseSaleRequest, List<PurchaseSale> contractsByVehicle) {
@@ -639,5 +642,16 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
       }
       throw exception;
     }
+  }
+
+  private long requireContractId(Long contractId) {
+    if (contractId == null) {
+      throw new IllegalArgumentException("El ID del contrato debe ser proporcionado.");
+    }
+    return contractId;
+  }
+
+  private @NonNull Pageable requirePageable(Pageable pageable) {
+    return Objects.requireNonNull(pageable, "La configuración de paginación es obligatoria.");
   }
 }

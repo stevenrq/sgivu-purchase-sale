@@ -16,6 +16,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Objects;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.PageRequest;
@@ -208,8 +209,7 @@ public class PurchaseSaleController {
 
     var filteredContracts = purchaseSaleService.search(criteria, pageable);
     if (!detailed) {
-      var simplePage =
-          filteredContracts.map(purchaseSaleMapper::toPurchaseSaleDetailResponse);
+      var simplePage = filteredContracts.map(purchaseSaleMapper::toPurchaseSaleDetailResponse);
       return ResponseEntity.ok(simplePage);
     }
     return ResponseEntity.ok(toDetailPage(filteredContracts));
@@ -270,7 +270,9 @@ public class PurchaseSaleController {
     return ResponseEntity.ok(responses);
   }
 
-  /** Obtiene las operaciones gestionadas por un usuario interno específico (responsable comercial). */
+  /**
+   * Obtiene las operaciones gestionadas por un usuario interno específico (responsable comercial).
+   */
   @GetMapping("/user/{userId}")
   @PreAuthorize("hasAuthority('purchase_sale:read')")
   public ResponseEntity<List<PurchaseSaleResponse>> getByUserId(@PathVariable Long userId) {
@@ -312,7 +314,7 @@ public class PurchaseSaleController {
     byte[] report = purchaseSaleReportService.generatePdf(startDate, endDate);
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, buildContentDisposition("pdf"))
-        .contentType(MediaType.APPLICATION_PDF)
+        .contentType(MediaType.valueOf(MediaType.APPLICATION_PDF_VALUE))
         .body(report);
   }
 
@@ -380,7 +382,8 @@ public class PurchaseSaleController {
    * @return página con DTOs detallados
    */
   private Page<PurchaseSaleDetailResponse> toDetailPage(Page<PurchaseSale> contracts) {
-    var detailed = purchaseSaleDetailService.toDetails(contracts.getContent());
+    List<PurchaseSaleDetailResponse> detailed =
+        Objects.requireNonNull(purchaseSaleDetailService.toDetails(contracts.getContent()));
     return new PageImpl<>(detailed, contracts.getPageable(), contracts.getTotalElements());
   }
 
@@ -388,7 +391,8 @@ public class PurchaseSaleController {
    * Normaliza cadenas para evitar filtros con espacios o cadenas vacías.
    *
    * @param value texto recibido desde query params
-   * @return {@code null} si no contiene caracteres significativos; el texto recortado en caso contrario
+   * @return {@code null} si no contiene caracteres significativos; el texto recortado en caso
+   *     contrario
    */
   private String trimToNull(String value) {
     if (value == null) {

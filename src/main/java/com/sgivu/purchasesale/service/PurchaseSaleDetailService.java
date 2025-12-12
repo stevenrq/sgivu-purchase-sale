@@ -86,7 +86,8 @@ public class PurchaseSaleDetailService {
   }
 
   /**
-   * Variante conveniente para construir un único detalle sin exponer la lista desde los controladores.
+   * Variante conveniente para construir un único detalle sin exponer la lista desde los
+   * controladores.
    *
    * @param contract contrato original
    * @return respuesta enriquecida con resúmenes relacionados
