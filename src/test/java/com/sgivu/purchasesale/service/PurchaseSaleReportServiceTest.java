@@ -1,7 +1,6 @@
 package com.sgivu.purchasesale.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -25,8 +24,11 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.Sort;
 
+@SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 class PurchaseSaleReportServiceTest {
+
+  private static final Sort DEFAULT_SORT = Sort.unsorted();
 
   @Mock private PurchaseSaleRepository purchaseSaleRepository;
   @Mock private PurchaseSaleDetailService purchaseSaleDetailService;
@@ -42,37 +44,37 @@ class PurchaseSaleReportServiceTest {
   @Test
   @DisplayName("generatePdf debe producir un arreglo de bytes no vacío")
   void generatePdf_ShouldReturnDocumentBytes() {
-    when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleRepository.findAll(DEFAULT_SORT)).thenReturn(List.of(sampleContract()));
     when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
 
     byte[] pdf = purchaseSaleReportService.generatePdf(null, null);
 
     assertThat(pdf).isNotEmpty();
-    verify(purchaseSaleRepository).findAll(any(Sort.class));
+    verify(purchaseSaleRepository).findAll(DEFAULT_SORT);
   }
 
   @Test
   @DisplayName("generateExcel debe producir un arreglo de bytes no vacío")
   void generateExcel_ShouldReturnDocumentBytes() {
-    when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleRepository.findAll(DEFAULT_SORT)).thenReturn(List.of(sampleContract()));
     when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
 
     byte[] excel = purchaseSaleReportService.generateExcel(null, null);
 
     assertThat(excel).isNotEmpty();
-    verify(purchaseSaleRepository).findAll(any(Sort.class));
+    verify(purchaseSaleRepository).findAll(DEFAULT_SORT);
   }
 
   @Test
   @DisplayName("generateCsv debe producir un arreglo de bytes no vacío")
   void generateCsv_ShouldReturnDocumentBytes() {
-    when(purchaseSaleRepository.findAll(any(Sort.class))).thenReturn(List.of(sampleContract()));
+    when(purchaseSaleRepository.findAll(DEFAULT_SORT)).thenReturn(List.of(sampleContract()));
     when(purchaseSaleDetailService.toDetails(anyList())).thenReturn(List.of(sampleDetail()));
 
     byte[] csv = purchaseSaleReportService.generateCsv(null, null);
 
     assertThat(csv).isNotEmpty();
-    verify(purchaseSaleRepository).findAll(any(Sort.class));
+    verify(purchaseSaleRepository).findAll(DEFAULT_SORT);
   }
 
   private PurchaseSale sampleContract() {

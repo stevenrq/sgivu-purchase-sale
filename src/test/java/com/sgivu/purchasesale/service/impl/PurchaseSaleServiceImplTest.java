@@ -3,7 +3,6 @@ package com.sgivu.purchasesale.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -35,6 +34,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
+@SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 class PurchaseSaleServiceImplTest {
 
@@ -295,7 +295,7 @@ class PurchaseSaleServiceImplTest {
     assertThat(updated.getPurchasePrice()).isEqualTo(PURCHASE_PRICE);
 
     verify(purchaseSaleRepository, times(1)).findByVehicleId(VEHICLE_ID);
-    verify(purchaseSaleRepository).save(eq(stored));
+    verify(purchaseSaleRepository).save(stored);
   }
 
   @Test
