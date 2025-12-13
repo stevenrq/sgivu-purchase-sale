@@ -345,13 +345,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
         findLatestPurchasePrice(contractsByVehicle, purchaseSaleRequest.getPurchasePrice()));
   }
 
-  /**
-   * Valida que el texto exista y no sea vacío, retornando la versión recortada.
-   *
-   * @param value valor recibido desde el request
-   * @param message mensaje de error a usar cuando falte el dato
-   * @return valor recortado
-   */
   private String requireText(String value, String message) {
     if (!StringUtils.hasText(value)) {
       throw new IllegalArgumentException(message);
@@ -359,13 +352,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return value.trim();
   }
 
-  /**
-   * Verifica que el entero sea mayor que cero; pensado para atributos numéricos obligatorios.
-   *
-   * @param value número a validar
-   * @param message mensaje de error contextual
-   * @return entero original cuando es válido
-   */
   private Integer requirePositiveInteger(Integer value, String message) {
     if (value == null || value <= 0) {
       throw new IllegalArgumentException(message);
@@ -373,12 +359,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return value;
   }
 
-  /**
-   * Asegura que el kilometraje no sea negativo.
-   *
-   * @param value valor recibido
-   * @return kilometraje validado
-   */
   private Integer requireNonNegativeInteger(Integer value) {
     if (value == null || value < 0) {
       throw new IllegalArgumentException("El kilometraje del vehículo es obligatorio.");
@@ -386,12 +366,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return value;
   }
 
-  /**
-   * Valida que el año sea razonable para un vehículo y se encuentre dentro del rango esperado.
-   *
-   * @param value año enviado
-   * @return año validado
-   */
   private Integer requireValidYear(Integer value) {
     Integer year = requirePositiveInteger(value, "El año del vehículo es obligatorio.");
     if (year < 1950 || year > 2050) {
@@ -420,13 +394,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return value;
   }
 
-  /**
-   * Ajusta el precio de venta del vehículo asegurando que nunca sea negativo; valores nulos se
-   * interpretan como cero para compras.
-   *
-   * @param salePrice valor solicitado
-   * @return precio de venta normalizado
-   */
   private Double resolveVehicleSalePrice(Double salePrice) {
     if (salePrice == null) {
       return 0d;
@@ -437,12 +404,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     return salePrice;
   }
 
-  /**
-   * Recorta textos opcionales devolviendo {@code null} cuando no contienen caracteres.
-   *
-   * @param value texto recibido
-   * @return texto recortado o {@code null}
-   */
   private String normalizeNullable(String value) {
     return StringUtils.hasText(value) ? value.trim() : null;
   }
@@ -566,21 +527,12 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
-  /**
-   * Verifica que el precio de compra siempre sea positivo para evitar inconsistencias contables.
-   *
-   * @param purchasePrice valor a validar
-   */
   private void validatePurchasePrice(Double purchasePrice) {
     if (purchasePrice == null || purchasePrice <= 0) {
       throw new IllegalArgumentException("El precio de compra debe ser mayor a cero.");
     }
   }
 
-  /**
-   * Valida que el usuario exista en el microservicio de usuarios. Evita registrar contratos con
-   * responsables inexistentes que luego rompan auditorías.
-   */
   private Long resolveUserId(Long userId) {
     if (userId == null) {
       throw new IllegalArgumentException("El ID del usuario debe ser proporcionado.");
@@ -616,10 +568,6 @@ public class PurchaseSaleServiceImpl implements PurchaseSaleService {
     }
   }
 
-  /**
-   * Valida la existencia del vehículo en el microservicio de inventario (carro o motocicleta). Se
-   * usa en contratos de venta para impedir referencias a inventario inexistente.
-   */
   private Long resolveVehicleId(Long vehicleId) {
     if (vehicleId == null) {
       throw new IllegalArgumentException("El ID del vehículo debe ser proporcionado.");

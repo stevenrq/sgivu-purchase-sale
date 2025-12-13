@@ -59,7 +59,6 @@ public class PurchaseSaleDetailService {
     Map<Long, ClientSummary> clientCache = new HashMap<>();
     Map<Long, UserSummary> userCache = new HashMap<>();
     Map<Long, VehicleSummary> vehicleCache = new HashMap<>();
-    // Caches locales por lote para evitar múltiples llamadas REST a los mismos ids.
 
     return contracts.stream()
         .map(
@@ -85,13 +84,6 @@ public class PurchaseSaleDetailService {
         .toList();
   }
 
-  /**
-   * Variante conveniente para construir un único detalle sin exponer la lista desde los
-   * controladores.
-   *
-   * @param contract contrato original
-   * @return respuesta enriquecida con resúmenes relacionados
-   */
   public PurchaseSaleDetailResponse toDetail(PurchaseSale contract) {
     return toDetails(List.of(contract)).stream().findFirst().orElse(null);
   }

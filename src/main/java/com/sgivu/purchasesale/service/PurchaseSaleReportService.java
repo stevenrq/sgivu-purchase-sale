@@ -101,8 +101,8 @@ public class PurchaseSaleReportService {
   }
 
   /**
-   * Genera un PDF con la lista de contratos dentro del rango indicado, aplicando cabeceras y
-   * tablas listas para impresión.
+   * Genera un PDF con la lista de contratos dentro del rango indicado, aplicando cabeceras y tablas
+   * listas para impresión.
    *
    * @param startDate fecha mínima (opcional)
    * @param endDate fecha máxima (opcional)
@@ -350,12 +350,6 @@ public class PurchaseSaleReportService {
     return table;
   }
 
-  /**
-   * Agrega una celda con formato de texto estándar a la tabla PDF.
-   *
-   * @param table tabla destino
-   * @param value contenido textual a mostrar
-   */
   private void addCell(PdfPTable table, String value) {
     Paragraph paragraph =
         new Paragraph(value != null ? value : "", FontFactory.getFont(FontFactory.HELVETICA, 9));
@@ -373,12 +367,6 @@ public class PurchaseSaleReportService {
     table.addCell(cell);
   }
 
-  /**
-   * Formatea fechas de auditoría a la zona horaria y patrón deseados.
-   *
-   * @param dateTime marca de tiempo a mostrar
-   * @return fecha legible o cadena vacía si no hay valor
-   */
   private String formatDate(LocalDateTime dateTime) {
     if (dateTime == null) {
       return "";
@@ -390,13 +378,6 @@ public class PurchaseSaleReportService {
         .format(DATE_TIME_FORMATTER);
   }
 
-  /**
-   * Construye la leyenda que describe el rango del reporte (ambos extremos o “completo”).
-   *
-   * @param startDate fecha mínima
-   * @param endDate fecha máxima
-   * @return texto descriptivo del periodo
-   */
   private String buildPeriodText(LocalDate startDate, LocalDate endDate) {
     if (startDate == null && endDate == null) {
       return "Periodo: todos los registros disponibles";
@@ -427,12 +408,6 @@ public class PurchaseSaleReportService {
         + safeText(contract.getObservations(), "Sin observaciones");
   }
 
-  /**
-   * Construye la sección de cliente para los bloques del PDF.
-   *
-   * @param clientSummary resumen del cliente
-   * @return bloque listo para mostrarse en la celda
-   */
   private String formatClientBlock(ClientSummary clientSummary) {
     if (clientSummary == null) {
       return "Nombre: N/D";
@@ -454,12 +429,6 @@ public class PurchaseSaleReportService {
         + formatPhoneNumber(clientSummary.getPhoneNumber());
   }
 
-  /**
-   * Construye la sección de usuario responsable.
-   *
-   * @param userSummary resumen del usuario
-   * @return bloque con datos de contacto
-   */
   private String formatUserBlock(UserSummary userSummary) {
     if (userSummary == null) {
       return "Gestor: N/D";
@@ -475,12 +444,6 @@ public class PurchaseSaleReportService {
         + safeText(userSummary.getEmail(), "N/D");
   }
 
-  /**
-   * Representa los datos básicos del vehículo asociado al contrato.
-   *
-   * @param vehicleSummary resumen del vehículo
-   * @return bloque textual listo para PDF
-   */
   private String formatVehicleBlock(VehicleSummary vehicleSummary) {
     if (vehicleSummary == null) {
       return "Vehículo: N/D";
@@ -505,12 +468,6 @@ public class PurchaseSaleReportService {
         + safeText(vehicleSummary.getStatus(), "N/D");
   }
 
-  /**
-   * Construye la sección financiera con precios y restricciones de pago.
-   *
-   * @param contract contrato detallado
-   * @return bloque de texto con valores monetarios y observaciones
-   */
   private String formatFinanceBlock(PurchaseSaleDetailResponse contract) {
     return "Precio compra: "
         + formatCurrency(contract.getPurchasePrice())
@@ -525,12 +482,6 @@ public class PurchaseSaleReportService {
         + safeText(contract.getPaymentLimitations(), "Sin restricciones");
   }
 
-  /**
-   * Sección temporal con fechas de creación y actualización en zona horaria destino.
-   *
-   * @param contract contrato detallado
-   * @return bloque de línea de tiempo
-   */
   private String formatTimelineBlock(PurchaseSaleDetailResponse contract) {
     return "Creado: "
         + formatDate(contract.getCreatedAt())
@@ -539,12 +490,6 @@ public class PurchaseSaleReportService {
         + formatDate(contract.getUpdatedAt());
   }
 
-  /**
-   * Aplica formato monetario colombiano a los valores numéricos.
-   *
-   * @param value monto a formatear
-   * @return texto con símbolo de moneda o {@code N/D} cuando no existe
-   */
   private String formatCurrency(Double value) {
     if (value == null) {
       return "N/D";
@@ -555,12 +500,6 @@ public class PurchaseSaleReportService {
     return formatter.format(value);
   }
 
-  /**
-   * Normaliza números decimales para exportes CSV/Excel con dos decimales.
-   *
-   * @param value valor numérico
-   * @return cadena vacía cuando es nulo o valor con dos decimales
-   */
   private String formatDecimal(Double value) {
     if (value == null) {
       return "";
@@ -568,22 +507,10 @@ public class PurchaseSaleReportService {
     return String.format(Locale.US, "%.2f", value);
   }
 
-  /**
-   * Convierte el teléfono a string, retornando N/D cuando no está presente.
-   *
-   * @param phoneNumber número telefónico
-   * @return teléfono o N/D
-   */
   private String formatPhoneNumber(Long phoneNumber) {
     return phoneNumber == null ? "N/D" : String.valueOf(phoneNumber);
   }
 
-  /**
-   * Traduce el tipo de cliente recibido desde servicios externos.
-   *
-   * @param type código de tipo (PERSON/COMPANY)
-   * @return etiqueta legible
-   */
   private String getClientTypeLabel(String type) {
     if (type == null) {
       return "";
@@ -595,12 +522,6 @@ public class PurchaseSaleReportService {
     };
   }
 
-  /**
-   * Traduce el tipo de vehículo a una etiqueta legible.
-   *
-   * @param type código remoto
-   * @return etiqueta en español
-   */
   private String getVehicleTypeLabel(String type) {
     if (type == null) {
       return "";
@@ -612,80 +533,60 @@ public class PurchaseSaleReportService {
     };
   }
 
-  /**
-   * Devuelve el texto recibido o un valor por defecto cuando viene vacío/nulo.
-   *
-   * @param value texto de entrada
-   * @param fallback valor por defecto
-   * @return texto utilizable
-   */
   private String safeText(String value, String fallback) {
     return (value == null || value.isBlank()) ? fallback : value;
   }
 
-  /** Obtiene el nombre del cliente o cadena vacía si no está disponible. */
   private String getClientName(ClientSummary summary) {
     return summary == null ? "" : safeText(summary.getName(), "");
   }
 
-  /** Obtiene el documento identificador del cliente o cadena vacía. */
   private String getClientIdentifier(ClientSummary summary) {
     return summary == null ? "" : safeText(summary.getIdentifier(), "");
   }
 
-  /** Obtiene el email del cliente o cadena vacía. */
   private String getClientEmail(ClientSummary summary) {
     return summary == null ? "" : safeText(summary.getEmail(), "");
   }
 
-  /** Obtiene el teléfono del cliente o cadena vacía cuando falta. */
   private String getClientPhone(ClientSummary summary) {
     return summary == null || summary.getPhoneNumber() == null
         ? ""
         : String.valueOf(summary.getPhoneNumber());
   }
 
-  /** Obtiene el nombre completo del usuario responsable o cadena vacía. */
   private String getUserFullName(UserSummary summary) {
     return summary == null ? "" : safeText(summary.getFullName(), "");
   }
 
-  /** Obtiene el username del usuario responsable o cadena vacía. */
   private String getUsername(UserSummary summary) {
     return summary == null ? "" : safeText(summary.getUsername(), "");
   }
 
-  /** Obtiene el email del usuario responsable o cadena vacía. */
   private String getUserEmail(UserSummary summary) {
     return summary == null ? "" : safeText(summary.getEmail(), "");
   }
 
-  /** Obtiene la marca del vehículo o cadena vacía. */
   private String getVehicleBrand(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getBrand(), "");
   }
 
-  /** Obtiene la línea del vehículo o cadena vacía. */
   private String getVehicleLine(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getLine(), "");
   }
 
-  /** Obtiene el modelo del vehículo o cadena vacía. */
   private String getVehicleModel(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getModel(), "");
   }
 
-  /** Obtiene la placa del vehículo o cadena vacía. */
   private String getVehiclePlate(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getPlate(), "");
   }
 
-  /** Obtiene el estado del vehículo o cadena vacía. */
   private String getVehicleStatus(VehicleSummary summary) {
     return summary == null ? "" : safeText(summary.getStatus(), "");
   }
 
-  /** Inicializa etiquetas legibles para estados, tipos de contrato y métodos de pago. */
   private void initialiseLabels() {
     statusLabels.put(ContractStatus.PENDING, "Pendiente");
     statusLabels.put(ContractStatus.ACTIVE, "Activa");
@@ -706,29 +607,20 @@ public class PurchaseSaleReportService {
     paymentMethodLabels.put(PaymentMethod.INSTALLMENT_PAYMENT, "Pago a plazos");
   }
 
-  /** Devuelve el nombre legible del estado del contrato. */
   private String getStatusLabel(ContractStatus status) {
     return status == null ? "" : statusLabels.getOrDefault(status, status.name());
   }
 
-  /** Devuelve el nombre legible del tipo de contrato. */
   private String getContractTypeLabel(ContractType contractType) {
     return contractType == null ? "" : typeLabels.getOrDefault(contractType, contractType.name());
   }
 
-  /** Devuelve la etiqueta legible del método de pago. */
   private String getPaymentMethodLabel(PaymentMethod paymentMethod) {
     return paymentMethod == null
         ? ""
         : paymentMethodLabels.getOrDefault(paymentMethod, paymentMethod.name());
   }
 
-  /**
-   * Ajusta automáticamente el ancho de columnas o aplica uno predeterminado en caso de error.
-   *
-   * @param sheet hoja de cálculo a ajustar
-   * @param columnCount número de columnas a recalcular
-   */
   private void autoSizeColumns(Sheet sheet, int columnCount) {
     for (int i = 0; i < columnCount; i++) {
       try {
@@ -739,24 +631,10 @@ public class PurchaseSaleReportService {
     }
   }
 
-  /**
-   * Establece un valor de celda textual manejando nulos.
-   *
-   * @param row fila en construcción
-   * @param columnIndex índice de columna
-   * @param value valor a escribir
-   */
   private void setCellValue(Row row, int columnIndex, String value) {
     row.createCell(columnIndex).setCellValue(value == null ? "" : value);
   }
 
-  /**
-   * Escribe un valor numérico o deja la celda en blanco cuando es nulo.
-   *
-   * @param row fila en construcción
-   * @param columnIndex índice de columna
-   * @param value valor numérico
-   */
   private void setNumericCellValue(Row row, int columnIndex, Double value) {
     if (value == null) {
       row.createCell(columnIndex).setBlank();
@@ -765,23 +643,11 @@ public class PurchaseSaleReportService {
     }
   }
 
-  /**
-   * Serializa y escribe una fila CSV escapando valores según el estándar.
-   *
-   * @param writer escritor del archivo
-   * @param values valores a separar por coma
-   */
   private void writeCsvRow(PrintWriter writer, String... values) {
     String row = Arrays.stream(values).map(this::escapeCsvValue).collect(Collectors.joining(","));
     writer.println(row);
   }
 
-  /**
-   * Construye una fila CSV a partir de un contrato detallado.
-   *
-   * @param contract contrato con datos enriquecidos
-   * @return arreglo listo para ser escrito
-   */
   private String[] buildCsvRow(PurchaseSaleDetailResponse contract) {
     ClientSummary client = contract.getClientSummary();
     UserSummary user = contract.getUserSummary();
@@ -814,12 +680,6 @@ public class PurchaseSaleReportService {
     };
   }
 
-  /**
-   * Escapa valores para CSV encerrándolos en comillas y duplicando cualquier comilla interna.
-   *
-   * @param value texto de entrada
-   * @return valor seguro para insertar en la línea CSV
-   */
   private String escapeCsvValue(String value) {
     if (value == null) {
       return "\"\"";
