@@ -22,7 +22,6 @@ import com.sgivu.purchasesale.enums.ContractType;
 import com.sgivu.purchasesale.enums.PaymentMethod;
 import com.sgivu.purchasesale.enums.VehicleType;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
-import com.sgivu.purchasesale.mapper.PurchaseSaleMapperImpl;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +29,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -53,7 +53,7 @@ class PurchaseSaleServiceImplTest {
 
   @BeforeEach
   void setUp() {
-    purchaseSaleMapper = new PurchaseSaleMapperImpl();
+    purchaseSaleMapper = Mappers.getMapper(PurchaseSaleMapper.class);
     purchaseSaleService =
         new PurchaseSaleServiceImpl(
             purchaseSaleRepository,

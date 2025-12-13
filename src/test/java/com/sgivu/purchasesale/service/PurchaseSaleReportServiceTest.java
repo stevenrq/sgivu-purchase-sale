@@ -27,8 +27,7 @@ import org.springframework.data.domain.Sort;
 @SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 class PurchaseSaleReportServiceTest {
-
-  private static final Sort DEFAULT_SORT = Sort.unsorted();
+  private static final Sort DEFAULT_SORT = Sort.by(Sort.Direction.DESC, "createdAt");
 
   @Mock private PurchaseSaleRepository purchaseSaleRepository;
   @Mock private PurchaseSaleDetailService purchaseSaleDetailService;
