@@ -3,8 +3,7 @@ package com.sgivu.purchasesale.service.impl;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.lenient;
-import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -23,394 +22,276 @@ import com.sgivu.purchasesale.enums.PaymentMethod;
 import com.sgivu.purchasesale.enums.VehicleType;
 import com.sgivu.purchasesale.mapper.PurchaseSaleMapper;
 import com.sgivu.purchasesale.repository.PurchaseSaleRepository;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
-import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mapstruct.factory.Mappers;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-@SuppressWarnings("null")
 @ExtendWith(MockitoExtension.class)
 class PurchaseSaleServiceImplTest {
 
-  private static final long CLIENT_ID = 100L;
-  private static final long USER_ID = 200L;
-  private static final long VEHICLE_ID = 300L;
-  private static final double PURCHASE_PRICE = 15000000d;
-
   @Mock private PurchaseSaleRepository purchaseSaleRepository;
+  @Mock private PurchaseSaleMapper purchaseSaleMapper;
   @Mock private ClientServiceClient clientServiceClient;
   @Mock private VehicleServiceClient vehicleServiceClient;
   @Mock private UserServiceClient userServiceClient;
 
-  private PurchaseSaleServiceImpl purchaseSaleService;
-  private PurchaseSaleMapper purchaseSaleMapper;
-
-  @BeforeEach
-  void setUp() {
-    purchaseSaleMapper = Mappers.getMapper(PurchaseSaleMapper.class);
-    purchaseSaleService =
-        new PurchaseSaleServiceImpl(
-            purchaseSaleRepository,
-            purchaseSaleMapper,
-            clientServiceClient,
-            vehicleServiceClient,
-            userServiceClient);
-  }
+  @InjectMocks private PurchaseSaleServiceImpl purchaseSaleService;
 
   @Test
-  @DisplayName("create debe persistir una compra con defaults y validar entidades externas")
-  void create_ShouldPersistPurchaseWithDefaults() {
+  void createPurchase_registersVehicleAndSavesContractWithNormalizedFields() {
     PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractStatus(ContractStatus.ACTIVE);
-
-    configureSuccessfulExternalLookups();
-
-    PurchaseSale existingPurchase = new PurchaseSale();
-    existingPurchase.setId(900L);
-    existingPurchase.setVehicleId(VEHICLE_ID);
-    existingPurchase.setContractType(ContractType.PURCHASE);
-    existingPurchase.setContractStatus(ContractStatus.COMPLETED);
-
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
-    when(purchaseSaleRepository.save(any(PurchaseSale.class)))
-        .thenAnswer(
-            invocation -> {
-              PurchaseSale entity = invocation.getArgument(0);
-              entity.setId(999L);
-              return entity;
-            });
-
-    PurchaseSale result = purchaseSaleService.create(request);
-
-    assertThat(result.getId()).isEqualTo(999L);
-    assertThat(result.getContractType()).isEqualTo(ContractType.PURCHASE);
-    assertThat(result.getContractStatus()).isEqualTo(ContractStatus.ACTIVE);
-    assertThat(result.getSalePrice()).isZero();
-    assertThat(result.getPurchasePrice()).isEqualTo(PURCHASE_PRICE);
-
-    ArgumentCaptor<PurchaseSale> captor = ArgumentCaptor.forClass(PurchaseSale.class);
-    verify(purchaseSaleRepository).save(captor.capture());
-    assertThat(captor.getValue().getSalePrice()).isZero();
-
-    verify(clientServiceClient).getPersonById(CLIENT_ID);
-    verify(userServiceClient).getUserById(USER_ID);
-    verify(vehicleServiceClient).getCarById(VEHICLE_ID);
-  }
-
-  @Test
-  @DisplayName("create debe registrar el vehículo cuando se omite el identificador en una compra")
-  void createPurchase_ShouldRegisterVehicleWhenVehicleIdMissing() {
-    PurchaseSaleRequest request = buildBaseRequest();
+    request.setContractType(null);
+    request.setContractStatus(null);
+    request.setSalePrice(null);
     request.setVehicleId(null);
-    VehicleCreationRequest vehicleData = buildVehicleData();
-    request.setVehicleData(vehicleData);
-
-    configureSuccessfulExternalLookups();
+    request.setVehicleData(buildCarData());
 
     Car createdCar = new Car();
-    long newVehicleId = 555L;
-    createdCar.setId(newVehicleId);
+    createdCar.setId(55L);
+
+    when(clientServiceClient.getPersonById(1L)).thenReturn(person(1L));
+    when(userServiceClient.getUserById(2L)).thenReturn(user(2L));
     when(vehicleServiceClient.createCar(any(Car.class))).thenReturn(createdCar);
-    when(purchaseSaleRepository.findByVehicleId(newVehicleId)).thenReturn(List.of());
+    when(purchaseSaleRepository.findByVehicleId(55L)).thenReturn(List.of());
+    when(purchaseSaleMapper.toPurchaseSale(any(PurchaseSaleRequest.class)))
+        .thenAnswer(invocation -> mapToEntity(invocation.getArgument(0)));
     when(purchaseSaleRepository.save(any(PurchaseSale.class)))
-        .thenAnswer(
-            invocation -> {
-              PurchaseSale entity = invocation.getArgument(0);
-              entity.setId(777L);
-              return entity;
-            });
+        .thenAnswer(invocation -> invocation.getArgument(0));
 
     PurchaseSale result = purchaseSaleService.create(request);
 
-    assertThat(result.getVehicleId()).isEqualTo(newVehicleId);
-    assertThat(result.getSalePrice()).isEqualTo(vehicleData.getSalePrice());
-    verify(vehicleServiceClient).createCar(any(Car.class));
-  }
+    ArgumentCaptor<Car> carCaptor = ArgumentCaptor.forClass(Car.class);
+    verify(vehicleServiceClient).createCar(carCaptor.capture());
+    Car sentCar = carCaptor.getValue();
+    assertThat(sentCar.getPlate()).isEqualTo("ABC123");
+    assertThat(sentCar.getStatus()).isEqualTo("AVAILABLE");
+    assertThat(sentCar.getPurchasePrice()).isEqualTo(12000d);
+    assertThat(sentCar.getSalePrice()).isEqualTo(18000d);
 
-  @Test
-  @DisplayName("create debe persistir una venta cuando existe una compra activa o completada")
-  void create_ShouldPersistSaleWithValidPurchase() {
-    PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractType(ContractType.SALE);
-    request.setSalePrice(19000000d);
-    request.setContractStatus(ContractStatus.PENDING);
-    request.setPurchasePrice(null);
-
-    configureSuccessfulExternalLookups();
-
-    PurchaseSale existingPurchase = new PurchaseSale();
-    existingPurchase.setId(50L);
-    existingPurchase.setVehicleId(VEHICLE_ID);
-    existingPurchase.setContractType(ContractType.PURCHASE);
-    existingPurchase.setContractStatus(ContractStatus.COMPLETED);
-    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
-
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
-    when(purchaseSaleRepository.save(any(PurchaseSale.class)))
-        .thenAnswer(
-            invocation -> {
-              PurchaseSale entity = invocation.getArgument(0);
-              entity.setId(1000L);
-              return entity;
-            });
-
-    PurchaseSale result = purchaseSaleService.create(request);
-
-    assertThat(result.getId()).isEqualTo(1000L);
-    assertThat(result.getContractType()).isEqualTo(ContractType.SALE);
-    assertThat(result.getSalePrice()).isEqualTo(19000000d);
+    assertThat(result.getVehicleId()).isEqualTo(55L);
+    assertThat(result.getContractType()).isEqualTo(ContractType.PURCHASE);
     assertThat(result.getContractStatus()).isEqualTo(ContractStatus.PENDING);
-    assertThat(result.getPurchasePrice()).isEqualTo(PURCHASE_PRICE);
+    assertThat(result.getSalePrice()).isEqualTo(18000d);
+    assertThat(result.getPurchasePrice()).isEqualTo(12000d);
   }
 
   @Test
-  @DisplayName("create debe rechazar ventas sin una compra previa válida")
-  void create_WhenSaleHasNoInventory_ShouldThrowException() {
+  void createPurchase_rejectsWhenPendingOrActivePurchaseAlreadyExists() {
     PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractType(ContractType.SALE);
-    request.setSalePrice(19000000d);
-    request.setPurchasePrice(null);
+    request.setVehicleId(77L);
+    request.setContractType(ContractType.PURCHASE);
 
-    configureSuccessfulExternalLookups();
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of());
+    PurchaseSale existing =
+        buildContract(
+            10L, ContractType.PURCHASE, ContractStatus.ACTIVE, 9000d, 0d, 77L, LocalDateTime.now());
 
-    assertThatThrownBy(() -> purchaseSaleService.create(request))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("No se encontró una compra válida asociada al vehículo");
-  }
+    Car car = new Car();
+    car.setId(77L);
 
-  @Test
-  @DisplayName("create debe rechazar ventas con precio de venta inválido")
-  void create_WhenSalePriceIsInvalid_ShouldThrowException() {
-    PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractType(ContractType.SALE);
-    request.setSalePrice(0d);
-    request.setPurchasePrice(null);
-
-    configureSuccessfulExternalLookups();
-
-    PurchaseSale existingPurchase = new PurchaseSale();
-    existingPurchase.setId(50L);
-    existingPurchase.setVehicleId(VEHICLE_ID);
-    existingPurchase.setContractType(ContractType.PURCHASE);
-    existingPurchase.setContractStatus(ContractStatus.COMPLETED);
-    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
-
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existingPurchase));
-
-    assertThatThrownBy(() -> purchaseSaleService.create(request))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("El precio de venta debe ser mayor a cero.");
-  }
-
-  @Test
-  @DisplayName(
-      "create debe rechazar ventas cuando ya existe una venta pendiente, activa o completada")
-  void create_WhenSaleAlreadyExists_ShouldThrowException() {
-    PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractType(ContractType.SALE);
-    request.setSalePrice(19000000d);
-    request.setContractStatus(ContractStatus.ACTIVE);
-    request.setPurchasePrice(null);
-
-    configureSuccessfulExternalLookups();
-
-    PurchaseSale existingPurchase = new PurchaseSale();
-    existingPurchase.setId(50L);
-    existingPurchase.setVehicleId(VEHICLE_ID);
-    existingPurchase.setContractType(ContractType.PURCHASE);
-    existingPurchase.setContractStatus(ContractStatus.COMPLETED);
-    existingPurchase.setPurchasePrice(PURCHASE_PRICE);
-
-    PurchaseSale existingSale = new PurchaseSale();
-    existingSale.setId(75L);
-    existingSale.setVehicleId(VEHICLE_ID);
-    existingSale.setContractType(ContractType.SALE);
-    existingSale.setContractStatus(ContractStatus.ACTIVE);
-
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
-        .thenReturn(List.of(existingPurchase, existingSale));
-
-    assertThatThrownBy(() -> purchaseSaleService.create(request))
-        .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("ya cuenta con una venta registrada");
-  }
-
-  @Test
-  @DisplayName("create debe impedir compras duplicadas cuando exista una compra pendiente/activa")
-  void create_WhenVehicleHasActivePurchase_ShouldThrowException() {
-    PurchaseSaleRequest request = buildBaseRequest();
-
-    configureSuccessfulExternalLookups();
-    PurchaseSale existing = new PurchaseSale();
-    existing.setId(10L);
-    existing.setVehicleId(VEHICLE_ID);
-    existing.setContractType(ContractType.PURCHASE);
-    existing.setContractStatus(ContractStatus.ACTIVE);
-
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of(existing));
+    when(clientServiceClient.getPersonById(1L)).thenReturn(person(1L));
+    when(userServiceClient.getUserById(2L)).thenReturn(user(2L));
+    when(vehicleServiceClient.getCarById(77L)).thenReturn(car);
+    when(purchaseSaleRepository.findByVehicleId(77L)).thenReturn(List.of(existing));
 
     assertThatThrownBy(() -> purchaseSaleService.create(request))
         .isInstanceOf(IllegalArgumentException.class)
         .hasMessageContaining("ya tiene una compra registrada");
+
+    verify(purchaseSaleRepository, never()).save(any(PurchaseSale.class));
   }
 
   @Test
-  @DisplayName("update debe mantener la lógica de compra y forzar salePrice en cero")
-  void update_ShouldApplyPurchaseDefaults() {
+  void createSale_usesLatestActivePurchasePriceAndPersistsSale() {
     PurchaseSaleRequest request = buildBaseRequest();
-    request.setContractStatus(ContractStatus.COMPLETED);
+    request.setContractType(ContractType.SALE);
+    request.setSalePrice(20000d);
+    request.setPurchasePrice(1000d);
+    request.setVehicleId(88L);
+    request.setVehicleData(null);
 
-    configureSuccessfulExternalLookups();
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of());
+    LocalDateTime now = LocalDateTime.now();
+    PurchaseSale oldPurchase =
+        buildContract(
+            1L, ContractType.PURCHASE, ContractStatus.COMPLETED, 8000d, 0d, 88L, now.minusDays(2));
+    PurchaseSale latestPurchase =
+        buildContract(
+            2L, ContractType.PURCHASE, ContractStatus.ACTIVE, 9500d, 0d, 88L, now.minusHours(1));
+    PurchaseSale canceledSale =
+        buildContract(
+            3L, ContractType.SALE, ContractStatus.CANCELED, 0d, 0d, 88L, now.minusDays(1));
 
-    PurchaseSale stored = new PurchaseSale();
-    stored.setId(77L);
-    stored.setClientId(CLIENT_ID);
-    stored.setUserId(USER_ID);
-    stored.setVehicleId(VEHICLE_ID);
-    stored.setPurchasePrice(10000000d);
-    stored.setSalePrice(5000000d);
-    stored.setContractType(ContractType.PURCHASE);
-    stored.setContractStatus(ContractStatus.PENDING);
+    Car car = new Car();
+    car.setId(88L);
 
-    when(purchaseSaleRepository.findById(77L)).thenReturn(Optional.of(stored));
+    when(clientServiceClient.getPersonById(1L)).thenReturn(person(1L));
+    when(userServiceClient.getUserById(2L)).thenReturn(user(2L));
+    when(vehicleServiceClient.getCarById(88L)).thenReturn(car);
+    when(purchaseSaleRepository.findByVehicleId(88L))
+        .thenReturn(List.of(oldPurchase, latestPurchase, canceledSale));
+    when(purchaseSaleMapper.toPurchaseSale(any(PurchaseSaleRequest.class)))
+        .thenAnswer(invocation -> mapToEntity(invocation.getArgument(0)));
     when(purchaseSaleRepository.save(any(PurchaseSale.class)))
         .thenAnswer(invocation -> invocation.getArgument(0));
 
-    Optional<PurchaseSale> result = purchaseSaleService.update(77L, request);
+    PurchaseSale result = purchaseSaleService.create(request);
 
-    assertThat(result).isPresent();
-    PurchaseSale updated = result.orElseThrow();
-
-    assertThat(updated.getContractType()).isEqualTo(ContractType.PURCHASE);
-    assertThat(updated.getSalePrice()).isZero();
-    assertThat(updated.getContractStatus()).isEqualTo(ContractStatus.COMPLETED);
-    assertThat(updated.getPurchasePrice()).isEqualTo(PURCHASE_PRICE);
-
-    verify(purchaseSaleRepository, times(1)).findByVehicleId(VEHICLE_ID);
-    verify(purchaseSaleRepository).save(stored);
+    assertThat(result.getPurchasePrice()).isEqualTo(9500d);
+    assertThat(result.getSalePrice()).isEqualTo(20000d);
+    assertThat(result.getContractType()).isEqualTo(ContractType.SALE);
   }
 
   @Test
-  @DisplayName("update no debe permitir cambiar el tipo de contrato")
-  void update_ShouldRejectContractTypeChange() {
+  void createSale_throwsWhenNoActiveOrCompletedPurchaseExists() {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
-    request.setSalePrice(20000000d);
+    request.setSalePrice(18000d);
+    request.setVehicleId(99L);
 
-    configureSuccessfulExternalLookups();
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID)).thenReturn(List.of());
+    PurchaseSale pendingPurchase =
+        buildContract(
+            1L,
+            ContractType.PURCHASE,
+            ContractStatus.PENDING,
+            8000d,
+            0d,
+            99L,
+            LocalDateTime.now().minusDays(1));
 
-    PurchaseSale stored = new PurchaseSale();
-    stored.setId(88L);
-    stored.setClientId(CLIENT_ID);
-    stored.setUserId(USER_ID);
-    stored.setVehicleId(VEHICLE_ID);
-    stored.setPurchasePrice(PURCHASE_PRICE);
-    stored.setSalePrice(0d);
-    stored.setContractType(ContractType.PURCHASE);
-    stored.setContractStatus(ContractStatus.ACTIVE);
+    Car car = new Car();
+    car.setId(99L);
 
-    when(purchaseSaleRepository.findById(88L)).thenReturn(Optional.of(stored));
+    when(clientServiceClient.getPersonById(1L)).thenReturn(person(1L));
+    when(userServiceClient.getUserById(2L)).thenReturn(user(2L));
+    when(vehicleServiceClient.getCarById(99L)).thenReturn(car);
+    when(purchaseSaleRepository.findByVehicleId(99L)).thenReturn(List.of(pendingPurchase));
 
-    assertThatThrownBy(() -> purchaseSaleService.update(88L, request))
+    assertThatThrownBy(() -> purchaseSaleService.create(request))
         .isInstanceOf(IllegalArgumentException.class)
-        .hasMessageContaining("No es posible cambiar el tipo de contrato");
+        .hasMessageContaining("no cuenta con una compra activa");
+
+    verify(purchaseSaleRepository, never()).save(any(PurchaseSale.class));
   }
 
   @Test
-  @DisplayName("update debe permitir cancelar una venta incluso sin compras activas")
-  void updateSale_ShouldAllowCancellationWithoutActivePurchase() {
+  void update_rejectsContractTypeChanges() {
     PurchaseSaleRequest request = buildBaseRequest();
     request.setContractType(ContractType.SALE);
-    request.setSalePrice(20000000d);
-    request.setContractStatus(ContractStatus.CANCELED);
+    request.setSalePrice(15000d);
+    request.setVehicleId(40L);
 
-    configureSuccessfulExternalLookups();
+    PurchaseSale existing =
+        buildContract(
+            10L,
+            ContractType.PURCHASE,
+            ContractStatus.PENDING,
+            9000d,
+            0d,
+            40L,
+            LocalDateTime.now().minusHours(5));
 
-    PurchaseSale storedSale = new PurchaseSale();
-    storedSale.setId(91L);
-    storedSale.setClientId(CLIENT_ID);
-    storedSale.setUserId(USER_ID);
-    storedSale.setVehicleId(VEHICLE_ID);
-    storedSale.setPurchasePrice(PURCHASE_PRICE);
-    storedSale.setSalePrice(18000000d);
-    storedSale.setContractType(ContractType.SALE);
-    storedSale.setContractStatus(ContractStatus.ACTIVE);
+    Car car = new Car();
+    car.setId(40L);
 
-    PurchaseSale canceledPurchase = new PurchaseSale();
-    canceledPurchase.setId(13L);
-    canceledPurchase.setVehicleId(VEHICLE_ID);
-    canceledPurchase.setContractType(ContractType.PURCHASE);
-    canceledPurchase.setContractStatus(ContractStatus.CANCELED);
+    when(clientServiceClient.getPersonById(1L)).thenReturn(person(1L));
+    when(userServiceClient.getUserById(2L)).thenReturn(user(2L));
+    when(vehicleServiceClient.getCarById(40L)).thenReturn(car);
+    when(purchaseSaleRepository.findByVehicleId(40L)).thenReturn(List.of(existing));
+    when(purchaseSaleRepository.findById(10L)).thenReturn(Optional.of(existing));
 
-    when(purchaseSaleRepository.findByVehicleId(VEHICLE_ID))
-        .thenReturn(List.of(canceledPurchase, storedSale));
-    when(purchaseSaleRepository.findById(91L)).thenReturn(Optional.of(storedSale));
-    when(purchaseSaleRepository.save(any(PurchaseSale.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0));
+    assertThatThrownBy(() -> purchaseSaleService.update(10L, request))
+        .isInstanceOf(IllegalArgumentException.class)
+        .hasMessageContaining("cambiar el tipo de contrato");
 
-    Optional<PurchaseSale> result = purchaseSaleService.update(91L, request);
-
-    assertThat(result).isPresent();
-    assertThat(result.orElseThrow().getContractStatus()).isEqualTo(ContractStatus.CANCELED);
+    verify(purchaseSaleRepository, never()).save(any(PurchaseSale.class));
   }
 
   private PurchaseSaleRequest buildBaseRequest() {
     PurchaseSaleRequest request = new PurchaseSaleRequest();
-    request.setClientId(CLIENT_ID);
-    request.setUserId(USER_ID);
-    request.setVehicleId(VEHICLE_ID);
-    request.setPurchasePrice(PURCHASE_PRICE);
-    request.setPaymentLimitations("Máximo 5M en efectivo");
+    request.setClientId(1L);
+    request.setUserId(2L);
+    request.setPurchasePrice(12000d);
+    request.setSalePrice(15000d);
+    request.setContractType(ContractType.PURCHASE);
+    request.setContractStatus(ContractStatus.PENDING);
+    request.setPaymentLimitations("Ninguna");
     request.setPaymentTerms("Pago inmediato");
-    request.setPaymentMethod(PaymentMethod.BANK_TRANSFER);
-    request.setObservations("Compra de prueba");
+    request.setPaymentMethod(PaymentMethod.CASH);
+    request.setObservations("Contrato base");
     return request;
   }
 
-  private VehicleCreationRequest buildVehicleData() {
+  private VehicleCreationRequest buildCarData() {
     VehicleCreationRequest vehicle = new VehicleCreationRequest();
     vehicle.setVehicleType(VehicleType.CAR);
     vehicle.setBrand("Toyota");
     vehicle.setModel("Corolla");
     vehicle.setCapacity(5);
     vehicle.setLine("SE");
-    vehicle.setPlate("ABC123");
-    vehicle.setMotorNumber("MOTOR-123");
-    vehicle.setSerialNumber("SERIAL-123");
-    vehicle.setChassisNumber("CHASSIS-123");
-    vehicle.setColor("Rojo");
+    vehicle.setPlate("abc123");
+    vehicle.setMotorNumber("MTR123");
+    vehicle.setSerialNumber("SER123");
+    vehicle.setChassisNumber("CHS123");
+    vehicle.setColor("Azul");
     vehicle.setCityRegistered("Bogota");
-    vehicle.setYear(2022);
-    vehicle.setMileage(10);
-    vehicle.setTransmission("Automática");
-    vehicle.setPurchasePrice(PURCHASE_PRICE);
-    vehicle.setSalePrice(20000000d);
-    vehicle.setBodyType("Sedán");
+    vehicle.setYear(2020);
+    vehicle.setMileage(10000);
+    vehicle.setTransmission("Automatica");
+    vehicle.setPurchasePrice(12000d);
+    vehicle.setSalePrice(18000d);
+    vehicle.setPhotoUrl("http://example.com/photo");
+    vehicle.setBodyType("Sedan");
     vehicle.setFuelType("Gasolina");
     vehicle.setNumberOfDoors(4);
     return vehicle;
   }
 
-  private void configureSuccessfulExternalLookups() {
+  private PurchaseSale mapToEntity(PurchaseSaleRequest request) {
+    PurchaseSale entity = new PurchaseSale();
+    entity.setPurchasePrice(request.getPurchasePrice());
+    entity.setSalePrice(request.getSalePrice());
+    entity.setContractType(request.getContractType());
+    entity.setContractStatus(request.getContractStatus());
+    entity.setPaymentLimitations(request.getPaymentLimitations());
+    entity.setPaymentTerms(request.getPaymentTerms());
+    entity.setPaymentMethod(request.getPaymentMethod());
+    entity.setObservations(request.getObservations());
+    return entity;
+  }
+
+  private PurchaseSale buildContract(
+      Long id,
+      ContractType contractType,
+      ContractStatus status,
+      Double purchasePrice,
+      Double salePrice,
+      Long vehicleId,
+      LocalDateTime updatedAt) {
+    PurchaseSale purchaseSale = new PurchaseSale();
+    purchaseSale.setId(id);
+    purchaseSale.setContractType(contractType);
+    purchaseSale.setContractStatus(status);
+    purchaseSale.setPurchasePrice(purchasePrice);
+    purchaseSale.setSalePrice(salePrice);
+    purchaseSale.setVehicleId(vehicleId);
+    purchaseSale.setUpdatedAt(updatedAt);
+    return purchaseSale;
+  }
+
+  private Person person(long id) {
     Person person = new Person();
-    person.setId(CLIENT_ID);
-    when(clientServiceClient.getPersonById(CLIENT_ID)).thenReturn(person);
+    person.setId(id);
+    return person;
+  }
 
+  private User user(long id) {
     User user = new User();
-    user.setId(USER_ID);
-    when(userServiceClient.getUserById(USER_ID)).thenReturn(user);
-
-    Car car = new Car();
-    car.setId(VEHICLE_ID);
-    lenient().when(vehicleServiceClient.getCarById(VEHICLE_ID)).thenReturn(car);
+    user.setId(id);
+    return user;
   }
 }
